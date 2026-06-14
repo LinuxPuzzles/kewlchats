@@ -1,0 +1,45 @@
+name: Test & Mirror
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-and-mirror:
+    runs-on: self-hosted
+    timeout-minutes: 30
+
+    env:
+      RUN_ID: ${{ github.run_id }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        run: bash dev/ci/setup.sh
+
+      - name: Run tests
+        run: php artisan test
+
+      - name: Mirror to GitHub
+        if: success()
+        run: |
+          DEPLOY_KEY_FILE="${HOME}/.ssh/kc_gh_deploy_key"
+          mkdir -p "${HOME}/.ssh"
+          printf '%s\n' "${GH_DEPLOY_KEY}" > "${DEPLOY_KEY_FILE}"
+          chmod 600 "${DEPLOY_KEY_FILE}"
+          export GIT_SSH_COMMAND="ssh -i ${DEPLOY_KEY_FILE} -o StrictHostKeyChecking=no -o BatchMode=yes"
+          git remote get-url github 2>/dev/null || git remote add github git@github.com:LinuxPuzzles/kewlchats.git
+          git remote set-url github git@github.com:LinuxPuzzles/kewlchats.git
+          git push --force github main
+          rm -f "${DEPLOY_KEY_FILE}"
+        env:
+          GH_DEPLOY_KEY: ${{ secrets.GH_DEPLOY_KEY }}
+
+      - name: Teardown
+        if: always()
+        run: bash dev/ci/teardown.sh

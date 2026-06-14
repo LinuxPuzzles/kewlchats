@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] { display: none !important; }
+
+/* Long-form text styling for the legal pages (Terms, Privacy). */
+.prose-legal h2 { @apply text-2xl font-bold text-slate-100 mt-12 mb-3; }
+.prose-legal h3 { @apply text-lg font-semibold text-slate-100 mt-8 mb-2; }
+.prose-legal p { @apply mt-3 text-slate-300 leading-relaxed; }
+.prose-legal ul { @apply mt-3 space-y-2 list-disc ps-6 text-slate-300; }
+.prose-legal li { @apply leading-relaxed; }
+.prose-legal a { @apply text-fuchsia-300 hover:text-fuchsia-200 underline; }
+.prose-legal strong { @apply text-slate-100 font-semibold; }

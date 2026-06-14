@@ -1,0 +1,128 @@
+================================================================================
+KewlChats — Security Review (findings & action backlog)
+================================================================================
+Date:     2026-06-12
+Scope:    Laravel auth / XMPP provisioning / admin / web-chat surface
+Reviewer: security pass (defensive review of own codebase)
+
+Context that shapes severity:
+  - XMPP/ejabberd underneath: no 2FA at the protocol level, so the website
+    session IS the credential. Compensating controls matter more than MFA.
+  - Product posture is "boring, low-value target": minimal retention, federation
+    (s2s) OFF at launch. Federation-off is currently shrinking the blast radius
+    of the account-creation issues below. That changes the DAY s2s is enabled.
+  - Items are ordered by priority. Each has: what, where, why it matters, fix.
+
+Legend:  [ ] todo   [~] in progress   [x] done
+
+--------------------------------------------------------------------------------
+CONCERNING  (address before enabling federation / s2s)
+--------------------------------------------------------------------------------
+
+[x] C1. Registration can fail OPEN, and has no rate limit.   *** highest priority ***
+    Where:  routes/auth.php:18  (POST /register has no `throttle` middleware)
+            app/Rules/Turnstile.php:21  (`if (empty($secret)) return;` = fail-open)
+            app/Http/Controllers/Auth/RegisteredUserController.php (honeypot only)
+    Why:    The only real bot control is Turnstile, and it silently disables itself
+            when no secret is configured. A blank/misconfigured TURNSTILE_SECRET in
+            prod turns signup into an open, unthrottled account factory — and every
+            signup provisions a real XMPP account. The honeypot stops only trivial
+            bots. This is the load-bearing anti-abuse control and it defaults to off.
+            (Federation-off is the only thing limiting blast radius today.)
+    Fix:    - Add `throttle:` middleware to the register route.
+            - Make Turnstile FAIL-CLOSED outside `local` (enforce, or at least
+              Log::warning, when secret is missing in production).
+
+[x] C2. A silently-failed password reset leaves the OLD XMPP credential valid.
+    Where:  app/Jobs/SyncXmppPassword.php:42-48 (retries 5x, then only logs)
+            app/Http/Controllers/Auth/NewPasswordController.php:54
+    Why:    If ejabberd is down during retries, the website password changes but the
+            XMPP password does NOT. After a user resets a COMPROMISED password, the
+            attacker's old credential still works on the chat side — a reset that
+            doesn't fully reset. Same drift class: BanXmppAccount failing = web
+            blocked but XMPP login still works.
+    Fix:    - Surface/alert on terminal sync failure (not just Log::error).
+            - Reflect un-synced state in xmpp_status so it's visible/re-drivable.
+            - Add a reconcile command to re-drive drifted accounts.
+
+[x] C3. No re-authentication on destructive admin actions.
+    Where:  routes/web.php:29-38 (admin group has no `password.confirm`)
+    Why:    XMPP rules out 2FA, so the admin session IS the keys to the kingdom.
+            Session theft = full moderation control (ban/kick/reset/destroy-room)
+            with no speed bump. confirm-password middleware exists but isn't applied.
+    Fix:    Gate ban / delete / reset-password / destroy-room behind `password.confirm`.
+            This is the best available compensating control given no MFA.
+
+[x] C4. Account / email enumeration.  (reset flow fixed + throttled; signup enumeration accepted)
+    Where:  RegisteredUserController (unique email validation message leaks membership)
+            app/Rules/XmppUsername.php:66 (accountExists confirms taken usernames)
+            routes/auth.php:28 (POST password.email has no IP throttle; only the
+            broker's per-email 60s gate)
+    Why:    Leaks who is a member (off-brand for a privacy-positioned service) and
+            allows email-bomb-every-60s against a known address.
+    Fix:    - Generic "if that email exists, we sent a link" responses.
+            - Add `throttle` middleware to password.email.
+
+[x] C5. /chat/token is unthrottled and mints bearer credentials.  (throttled; TTL 600; scope test)
+    Where:  app/Http/Controllers/ChatController.php:42 (issueChatToken, TTL 3600)
+            app/Services/Xmpp/EjabberdApiProvisioner.php:138 (scopes 'sasl_auth')
+    Why:    A logged-in client can mint unlimited live hour-long X-OAUTH2 tokens.
+            Low severity (must be authenticated), but tokens ARE SASL credentials.
+    Fix:    - Throttle the endpoint; consider a shorter TTL (browser refetches per
+              session anyway).
+            - VERIFY ejabberd issues these with only sasl_auth scope, never
+              ejabberd:admin.
+
+--------------------------------------------------------------------------------
+MINOR / HYGIENE
+--------------------------------------------------------------------------------
+
+[x] M1. Secret field is mass-assignable.
+    Where:  app/Models/User.php:14 (#[Fillable] includes xmpp_pending_secret,
+            and xmpp_status)
+    Why:    No current route mass-assigns it, but a secret has no business being
+            fillable. Tighten before some future endpoint accidentally exposes it.
+    Fix:    Drop xmpp_pending_secret (and xmpp_status) from Fillable; set via
+            forceFill like is_admin / banned_at already are.
+
+[x] M2. APP_DEBUG=true in .env.example — make prod runbook explicit.  (documented in CLAUDE.md)
+    Where:  .env.example:4
+    Why:    A debug page leaks APP_KEY/env. APP_KEY is the single key protecting
+            every pending secret (encrypted cast). Blast radius is small because
+            secrets are wiped on verify (that wipe is doing real work), but the
+            chain matters.
+    Fix:    Document APP_DEBUG=false as a hard prod requirement.
+
+[x] M3. Web-chat token must ride wss:// only (already noted in CLAUDE.md).  (kept as launch gate)
+    Why:    Over plain ws:// the bearer token is on the wire.
+    Fix:    Keep secure-context/wss as a hard launch gate.
+
+[x] M4. Raw SVG QR output — currently safe, keep it that way.  (verified; no action)
+    Where:  resources/views/dashboard.blade.php:61 ({!! $jidQr !!})
+    Why:    Encodes the strictly-validated JID, so no injection path today.
+    Fix:    Never let that QR encode unvalidated input. (No action needed now.)
+
+--------------------------------------------------------------------------------
+WHAT'S ALREADY GOOD  (don't regress these)
+--------------------------------------------------------------------------------
+  - One-password lifecycle: bcrypt hash only; plaintext stashed encrypted, used
+    once on verify, then wiped; reset/change plaintext passed into job args, never
+    persisted.
+  - Provisioning gated on email verification (no XMPP account for unverified email).
+  - #[Hidden] on password / remember_token / xmpp_pending_secret.
+  - Reserved-name blocklist (admin@, security@, support@, kewlchats@, ...).
+  - Strict username validation (no .., bounded length, no JID-confusion).
+  - Defense-in-depth ban: login reject + mid-session force-logout + ejabberd
+    ban_account; admins can't be banned; login throttle keyed email|ip (5 attempts).
+  - Idempotent register/unregister (retry-safe).
+  - Web chat: short-lived X-OAUTH2 token, password never re-shown, SASL restricted;
+    moderation via ReST API only (no ejabberdctl shelling), loopback API base.
+
+--------------------------------------------------------------------------------
+SUGGESTED ORDER OF ATTACK
+--------------------------------------------------------------------------------
+  Must-fix BEFORE enabling federation (s2s):  C1, C2
+  Best compensating control for no-MFA:        C3
+  Quick wins, low effort/high tidy:            C4 (throttle), C5 (throttle), M1
+  Doc/runbook gates:                           M2, M3
+================================================================================
