@@ -1,0 +1,49 @@
+---
+- name: Install per-site queue worker units
+  ansible.builtin.template:
+    src: worker.service.j2
+    dest: "/etc/systemd/system/{{ item.name }}-worker.service"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ sites }}"
+  loop_control:
+    loop_var: site
+    label: "{{ site.name }}"
+  notify:
+    - Reload systemd
+    - Restart kewlchats workers
+
+- name: Install per-site reconcile units
+  ansible.builtin.template:
+    src: "{{ item.1 }}.j2"
+    dest: "/etc/systemd/system/{{ item.0.name }}-{{ item.1 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ sites | product(['reconcile.service', 'reconcile.timer']) | list }}"
+  loop_control:
+    label: "{{ item.0.name }}-{{ item.1 }}"
+  vars:
+    site: "{{ item.0 }}"
+  notify: Reload systemd
+
+- name: Enable and start per-site queue workers
+  ansible.builtin.systemd_service:
+    name: "{{ item.name }}-worker.service"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: "{{ sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Enable per-site reconcile timers
+  ansible.builtin.systemd_service:
+    name: "{{ item.name }}-reconcile.timer"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: "{{ sites }}"
+  loop_control:
+    label: "{{ item.name }}"

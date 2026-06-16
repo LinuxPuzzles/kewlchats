@@ -1,0 +1,61 @@
+---
+# Joins the box to your tailnet. SSH and the monit web UI are then gated to the
+# tailnet by the firewall + monit roles. Skipped entirely if no auth key is set.
+- name: Add Tailscale apt signing key
+  ansible.builtin.get_url:
+    url: https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add Tailscale apt source
+  ansible.builtin.get_url:
+    url: https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list
+    dest: /etc/apt/sources.list.d/tailscale.list
+    owner: root
+    group: root
+    mode: "0644"
+  register: tailscale_repo
+
+- name: Update apt cache after adding Tailscale repo
+  ansible.builtin.apt:
+    update_cache: true
+  when: tailscale_repo.changed
+
+- name: Install Tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+
+- name: Enable and start tailscaled
+  ansible.builtin.service:
+    name: tailscaled
+    enabled: true
+    state: started
+
+- name: Check current Tailscale state
+  ansible.builtin.command: tailscale status
+  register: tailscale_state
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# `tailscale status` exits non-zero when stopped/logged out. Only auth when needed
+# so re-runs don't churn an already-connected node.
+- name: Bring Tailscale up
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - up
+      - "--authkey={{ tailscale_authkey }}"
+      - "--hostname={{ tailscale_hostname }}"
+      - "--accept-dns=false"
+  when: tailscale_state.rc != 0
+  no_log: true
+
+- name: Get Tailscale IPv4
+  ansible.builtin.command: tailscale ip -4
+  register: tailscale_ip
+  changed_when: false
+  check_mode: false

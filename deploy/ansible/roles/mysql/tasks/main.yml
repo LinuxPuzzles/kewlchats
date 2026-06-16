@@ -1,0 +1,80 @@
+---
+- name: Install MySQL server
+  ansible.builtin.apt:
+    name: mysql-server
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Configure MySQL (loopback bind + tuning)
+  ansible.builtin.copy:
+    dest: /etc/mysql/mysql.conf.d/99-kewlchats.cnf
+    content: |
+      [mysqld]
+      bind-address = 127.0.0.1
+      innodb_buffer_pool_size = {{ mysql_innodb_buffer_pool }}
+      innodb_flush_log_at_trx_commit = 2
+      innodb_file_per_table = 1
+      max_connections = 300
+      character-set-server = utf8mb4
+      collation-server = utf8mb4_unicode_ci
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart mysql
+
+- name: Enable and start MySQL
+  ansible.builtin.service:
+    name: mysql
+    enabled: true
+    state: started
+
+- name: Apply pending MySQL config now (so DB tasks use final settings)
+  ansible.builtin.meta: flush_handlers
+
+# Root connects over the unix socket as the local root user (Ubuntu default
+# auth_socket); no root password needed when running as root.
+- name: Create per-site application databases
+  community.mysql.mysql_db:
+    name: "{{ item.name }}"
+    encoding: utf8mb4
+    collation: utf8mb4_unicode_ci
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+  loop: "{{ sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create per-site application DB users
+  community.mysql.mysql_user:
+    name: "{{ item.name }}"
+    password: "{{ lookup('vars', 'db_password_' ~ item.name) }}"
+    host: 127.0.0.1
+    priv: "{{ item.name }}.*:ALL"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+  loop: "{{ sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Create ejabberd database
+  community.mysql.mysql_db:
+    name: "{{ mysql_ejabberd_db }}"
+    encoding: utf8mb4
+    collation: utf8mb4_unicode_ci
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+
+# ejabberd's Erlang MySQL driver needs mysql_native_password (MySQL 8 defaults
+# to caching_sha2_password, which it can't speak).
+- name: Create ejabberd DB user (mysql_native_password)
+  community.mysql.mysql_user:
+    name: "{{ mysql_ejabberd_user }}"
+    host: 127.0.0.1
+    plugin: mysql_native_password
+    plugin_hash_string: "{{ db_ejabberd_password_nathash }}"
+    priv: "{{ mysql_ejabberd_db }}.*:ALL"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+  no_log: true

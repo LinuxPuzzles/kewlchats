@@ -1,0 +1,35 @@
+# Managed by Ansible (kewlchats) — monit global config.
+# (Ubuntu's monitrc already sets `set daemon` / logging and includes conf.d/*.)
+
+# Send mail via Postmark (token is both username and password). The from-domain
+# must be a verified sender in Postmark.
+set mailserver {{ mail_host }} port {{ mail_port }}
+    username "{{ postmark_token }}" password "{{ postmark_token }}"
+    using tlsv12
+
+set mail-format {
+  from: {{ monit_mail_from }}
+  subject: [monit] $SERVICE $EVENT on $HOST
+  message: Monit on $HOST reported:
+
+    $EVENT : $SERVICE
+    $DESCRIPTION
+
+    $DATE
+}
+
+# All alerts go here.
+set alert {{ monit_alert_email }}
+
+{% if tailscale_enabled | bool %}
+# Web UI exposed only over the tailnet (ufw allows in on tailscale0; default-deny
+# keeps it off the public NIC; the allow ACL is belt-and-suspenders).
+set httpd port {{ monit_httpd_port }}
+    use address 0.0.0.0
+    allow localhost
+    allow {{ tailnet_cidr }}
+{% else %}
+# Local control socket so `monit status` / `monit reload` work (no network port).
+set httpd unixsocket /run/monit.sock
+    allow localhost
+{% endif %}

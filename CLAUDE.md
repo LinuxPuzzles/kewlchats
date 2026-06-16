@@ -101,12 +101,15 @@ features, so we retain almost nothing. The vibe is intentionally IRC-like — ep
   open later: closed→open is non-breaking (users *gain* reach), open→closed breaks existing
   cross-server contacts. Don't enable `s2s` until abuse/spam controls + a written retention
   policy exist.
-- **No message archive (MAM / `mod_mam` off).** We do not keep message history server-side.
-  This is the single most important knob for the "we don't have useful data" posture.
-- **Smooth multi-device without an archive:** Carbons (`mod_carbons`) ON so simultaneous
-  phone+laptop both see live messages; short-lived **offline spool** (`mod_offline`) so a
-  message sent while you're offline still arrives once, then is gone; MUC room history
-  near-zero. Accepted tradeoff: a device that was *off* can't sync past scrollback — by design.
+- **Short message archive (MAM ON, 7-day retention).** *Revised from the original "MAM off"
+  stance:* testing across real clients (Conversations/Monal/Converse) was too painful without
+  any history. We now run `mod_mam` (SQL) but **trim to 7 days** via a daily
+  `delete_old_mam_messages` timer (see `deploy/ansible/roles/ejabberd`). Spirit preserved —
+  retention is short, so "we don't have much useful data" still holds; it's no longer *zero*.
+- **Smooth multi-device:** Carbons (`mod_carbons`) ON so simultaneous phone+laptop both see
+  live messages; short-lived **offline spool** (`mod_offline`); MUC room history small
+  (`history_size: 20`, room `mam: true`). With the 7-day MAM a device that was *off* can now
+  sync recent scrollback (within the window).
 - **Minimal logging / retention:** keep IP/connection-log retention minimal (metadata is what
   most requests actually want). Content, where clients use OMEMO, is ciphertext we can't read —
   but we don't *promise* E2E in the UI (we don't control the clients; it's not always on).
@@ -157,8 +160,8 @@ tuning → CPU/RAM.** The hardware is *not* the limit at this scale.
 - **Don't run an open relay.** ejabberd's `mod_stun_disco` hands clients short-lived TURN
   credentials tied to their XMPP auth (XEP-0215), so it's authenticated by default — set a defined
   relay UDP port range (e.g. 49152–65535) and the server's public `turn_ipv4_address`.
-- **MAM-off keeps load tiny.** No archive = almost no write load; DB/disk stay small. The
-  SSD makes MySQL latency a non-issue.
+- **7-day MAM keeps load tiny.** A short, auto-trimmed archive is still almost no write load;
+  DB/disk stay small. The SSD makes MySQL latency a non-issue.
 - **Raise ulimits.** Default `nofile 1024` caps you at ~1k connections regardless of the
   32 GB. Raise `nofile` + Erlang max ports to 100k+. (#1 real-world gotcha.)
 - **Concurrency headroom.** ejabberd (Erlang) handles tens of thousands of concurrent
@@ -257,9 +260,21 @@ ReST API (never `ejabberdctl`).
   ejabberd). Verified against live ejabberd; covered by `tests/Feature/AdminModerationTest.php`.
 
 **Remaining:**
-- **Prod:** deploy ejabberd on the Xeon (MySQL, Let's Encrypt, same `ejabberd.yml`); front the
-  WebSocket with TLS (`wss`) behind the web server so the secure-context requirement is met.
-- **Voice/video:** re-enable ejabberd's built-in STUN/TURN — the `ejabberd_stun` listener (UDP
-  5478) + `mod_stun_disco`, with `use_turn: true`, the public `turn_ipv4_address`, and a relay
-  port range. (Both were trimmed from `ops/ejabberd/ejabberd.yml`; the brew default had them.)
-  No coturn. Plus real MUC directory / presence polish.
+- **Prod deploy is now Ansible** (`deploy/ansible/`), not the Marathon portal/LXD model — a
+  single dedicated Ubuntu 24.04 box runs Laravel (nginx + PHP 8.5-FPM) + ejabberd (MySQL, MAM)
+  + MySQL + Redis. certbot+Bunny DNS-01 issues **wildcard** certs (covering `conference`/`pubsub`)
+  shared by nginx and ejabberd; nginx proxies `wss://…/ws` to ejabberd's loopback HTTP listener
+  (meets the secure-context requirement). The ejabberd prod config is generated from
+  `roles/ejabberd/templates/ejabberd.yml.j2` (no IPv6, loopback API, SQL backend, 7-day MAM, TURN).
+  See `deploy/ansible/README.md`. Still TODO: actually run it against the box and finalize DNS.
+- **Multi-site (same codebase, multiple front doors).** The box hosts a `sites` list — currently
+  `kewlchats.net` and `ready2.im` (the latter with `www`/`ready2im.{com,net,org}` aliases that
+  301 to it). Each site is a separate Laravel deploy (own checkout/DB/.env/worker/vhost) **and**
+  an ejabberd **virtual host** on the same node. Multiple local vhosts route to each other
+  *internally* — cross-domain chat (`a@kewlchats.net` ↔ `b@ready2.im`) and shared MUC work with
+  **`s2s` still off**; `s2s` is only for reaching other servers. They are deliberately not walled
+  off from each other. ready2.im will eventually fork into its own codebase; until then it's the
+  identical code with a different layout.
+- **Voice/video:** the Ansible `ejabberd.yml.j2` already includes the `ejabberd_stun` listener
+  (UDP 5478) + `mod_stun_disco` with `use_turn: true`, the public `turn_ipv4_address`, and the
+  relay port range (firewalled open). No coturn. Plus real MUC directory / presence polish.

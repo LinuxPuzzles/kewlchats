@@ -1,0 +1,41 @@
+# Managed by Ansible (kewlchats) — monit checks.
+# Alert-only: systemd owns restarts (workers have Restart=always), so monit just
+# tells you. Add `start program`/`stop program` later if you want auto-recovery.
+
+check system $HOST
+  if loadavg (5min) per core > 3 for 5 cycles then alert
+  if memory usage > 90% for 5 cycles then alert
+  if swap usage > 60% for 5 cycles then alert
+
+check filesystem rootfs with path /
+  if space usage > {{ monit_disk_threshold }}% then alert
+  if inode usage > {{ monit_disk_threshold }}% then alert
+
+# --- Core services (is the unit active?) ---
+{% for svc in ['nginx', 'php' ~ php_version ~ '-fpm', 'mysql', 'redis-server', 'ejabberd'] %}
+check program svc_{{ svc | replace('.', '_') | replace('-', '_') }} with path "/usr/bin/systemctl is-active --quiet {{ svc }}"
+  if status != 0 for 2 cycles then alert
+{% endfor %}
+
+# --- Per-site queue workers ---
+{% for s in sites %}
+check program svc_{{ s.name }}_worker with path "/usr/bin/systemctl is-active --quiet {{ s.name }}-worker.service"
+  if status != 0 for 2 cycles then alert
+{% endfor %}
+
+# --- Local listeners (process up but not actually serving?) ---
+check host xmpp_c2s with address 127.0.0.1
+  if failed port 5222 type tcp for 2 cycles then alert
+check host ejabberd_api with address 127.0.0.1
+  if failed port 5280 type tcp for 2 cycles then alert
+check host mysql_svc with address 127.0.0.1
+  if failed port 3306 protocol mysql for 2 cycles then alert
+check host redis_svc with address 127.0.0.1
+  if failed port 6379 type tcp for 2 cycles then alert
+
+# --- Public HTTPS reachability + cert expiry (end-to-end: DNS + nginx + cert) ---
+{% for s in sites %}
+check host https_{{ s.name }} with address {{ s.domain }}
+  if failed port 443 protocol https with timeout 15 seconds for 2 cycles then alert
+  if failed port 443 protocol https and certificate valid > 10 days then alert
+{% endfor %}

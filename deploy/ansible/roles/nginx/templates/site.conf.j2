@@ -1,0 +1,99 @@
+# Managed by Ansible (kewlchats) — site: {{ site.name }} ({{ site.domain }})
+{% set live = le_live_base ~ '/' ~ site.cert_name %}
+
+# HTTP: canonical + aliases -> HTTPS canonical (ACME path kept open as fallback).
+server {
+    listen 80;
+    server_name {{ site.domain }}{% for a in site.aliases %} {{ a }}{% endfor %};
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+    location / {
+        return 301 https://{{ site.domain }}$request_uri;
+    }
+}
+{% if site.aliases | length > 0 %}
+
+# HTTPS aliases -> canonical.
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name{% for a in site.aliases %} {{ a }}{% endfor %};
+
+    ssl_certificate     {{ live }}/fullchain.pem;
+    ssl_certificate_key {{ live }}/privkey.pem;
+
+    return 301 https://{{ site.domain }}$request_uri;
+}
+{% endif %}
+
+# Main site (HTTPS canonical).
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name {{ site.domain }};
+
+    root {{ app_root }}/{{ site.name }}/public;
+    index index.php;
+
+    ssl_certificate     {{ live }}/fullchain.pem;
+    ssl_certificate_key {{ live }}/privkey.pem;
+
+    # Security headers.
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    client_max_body_size 16m;
+
+    access_log /var/log/nginx/{{ site.name }}.access.log;
+    error_log  /var/log/nginx/{{ site.name }}.error.log;
+
+    # WebSocket + BOSH -> the shared ejabberd (loopback). ejabberd routes by the
+    # JID domain in the stream, so both sites use the same endpoint. /api and
+    # /admin are deliberately NOT proxied.
+    location /ws {
+        proxy_pass http://127.0.0.1:5280/ws;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 3600s;
+    }
+
+    location /bosh {
+        proxy_pass http://127.0.0.1:5280/bosh;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Long-cache built assets.
+    location ~* ^/(build|vendor/converse)/.*\.(js|mjs|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot|webp|avif|map)$ {
+        expires max;
+        access_log off;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:{{ php_fpm_socket }};
+        fastcgi_read_timeout 300;
+    }
+
+    # Deny dotfiles (except ACME) and sensitive extensions.
+    location ~ /\.(?!well-known) {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+    location ~* \.(bak|conf|env|sql|sh|log|swp|swo)$ {
+        deny all;
+    }
+}

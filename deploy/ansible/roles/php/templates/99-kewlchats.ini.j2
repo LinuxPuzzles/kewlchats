@@ -1,0 +1,18 @@
+; Managed by Ansible (kewlchats). Hardening + OPcache.
+expose_php = Off
+display_errors = Off
+log_errors = On
+cgi.fix_pathinfo = 0
+memory_limit = {{ php_memory_limit }}
+
+; Disable the dangerous shell-exec family. proc_open/popen are intentionally left
+; enabled — Composer and some Laravel tooling need them.
+disable_functions = exec,passthru,shell_exec,system,show_source
+
+; OPcache (no-op under CLI; enable_cli left off).
+opcache.enable = 1
+opcache.enable_cli = 0
+opcache.memory_consumption = {{ php_opcache_memory }}
+opcache.max_accelerated_files = {{ php_opcache_max_files }}
+opcache.validate_timestamps = 1
+opcache.revalidate_freq = 60

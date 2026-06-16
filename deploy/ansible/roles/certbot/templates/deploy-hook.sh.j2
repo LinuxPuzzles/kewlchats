@@ -1,0 +1,30 @@
+#!/bin/bash
+# Managed by Ansible (kewlchats). Runs after every successful cert issue/renew.
+# Tolerant by design: certbot runs before ejabberd/nginx are installed on the
+# first pass, so guard every service action.
+set -euo pipefail
+
+CERT_DIR="{{ ejabberd_certs_dir }}"
+mkdir -p "$CERT_DIR"
+
+# ejabberd wants one file per cert containing chain + private key, and it runs as
+# the ejabberd user (can't read /etc/letsencrypt/live).
+for name in {{ ejabberd_cert_names | join(' ') }}; do
+    live="{{ le_live_base }}/${name}"
+    if [ -f "${live}/fullchain.pem" ]; then
+        dest="${CERT_DIR}/${name}.pem"
+        cat "${live}/fullchain.pem" "${live}/privkey.pem" > "$dest"
+        if getent group ejabberd >/dev/null 2>&1; then
+            chown ejabberd:ejabberd "$dest"
+        fi
+        chmod 640 "$dest"
+    fi
+done
+
+# Reload services only if they're installed and running.
+if command -v ejabberdctl >/dev/null 2>&1 && systemctl is-active --quiet ejabberd; then
+    ejabberdctl reload_config || true
+fi
+if systemctl is-active --quiet nginx; then
+    systemctl reload nginx || true
+fi

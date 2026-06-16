@@ -1,0 +1,46 @@
+---
+- name: Install Redis
+  ansible.builtin.apt:
+    name: redis-server
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create redis drop-in directory
+  ansible.builtin.file:
+    path: /etc/redis/redis.conf.d
+    state: directory
+    owner: redis
+    group: redis
+    mode: "0750"
+
+- name: Configure Redis (loopback, password, memory policy)
+  ansible.builtin.copy:
+    dest: /etc/redis/redis.conf.d/kewlchats.conf
+    content: |
+      # Managed by Ansible (kewlchats).
+      bind 127.0.0.1
+      protected-mode yes
+      requirepass {{ redis_password }}
+      maxmemory {{ redis_maxmemory }}
+      maxmemory-policy allkeys-lru
+    owner: redis
+    group: redis
+    mode: "0640"
+  no_log: true
+  notify: Restart redis
+
+# Ubuntu's redis ships /etc/redis/redis.conf; ensure it includes our drop-in.
+- name: Ensure redis.conf includes the drop-in
+  ansible.builtin.lineinfile:
+    path: /etc/redis/redis.conf
+    line: "include /etc/redis/redis.conf.d/kewlchats.conf"
+    insertafter: EOF
+    state: present
+  notify: Restart redis
+
+- name: Enable and start Redis
+  ansible.builtin.service:
+    name: redis-server
+    enabled: true
+    state: started

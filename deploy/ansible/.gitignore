@@ -1,0 +1,8 @@
+# Secrets you supply — never commit these.
+group_vars/all/provided.yml
+files/deploy_key
+files/deploy_key.pub
+
+# Ansible noise
+*.retry
+.vault_pass

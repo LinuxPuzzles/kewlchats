@@ -1,0 +1,139 @@
+---
+# --- Install from the official Process-One apt repo ---
+- name: Add Process-One apt signing key
+  ansible.builtin.get_url:
+    url: https://repo.process-one.net/ejabberd.gpg
+    dest: /etc/apt/trusted.gpg.d/ejabberd.gpg
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add Process-One apt source
+  ansible.builtin.get_url:
+    url: https://repo.process-one.net/ejabberd.list
+    dest: /etc/apt/sources.list.d/ejabberd.list
+    owner: root
+    group: root
+    mode: "0644"
+  register: ejabberd_repo
+
+- name: Update apt cache after adding ejabberd repo
+  ansible.builtin.apt:
+    update_cache: true
+  when: ejabberd_repo.changed
+
+- name: Install ejabberd
+  ansible.builtin.apt:
+    name: ejabberd
+    state: present
+
+- name: Locate ejabberdctl
+  ansible.builtin.shell: command -v ejabberdctl
+  register: ejabberdctl_which
+  changed_when: false
+  check_mode: false   # read-only; must run under --check (its path feeds later tasks)
+
+- name: Set ejabberdctl path fact
+  ansible.builtin.set_fact:
+    ejabberdctl_path: "{{ ejabberdctl_which.stdout }}"
+
+# --- Load the MySQL schema (new schema) once ---
+- name: Check whether ejabberd schema is already loaded
+  community.mysql.mysql_query:
+    login_db: "{{ mysql_ejabberd_db }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+    query: "SHOW TABLES LIKE 'users'"
+  register: ejabberd_schema_check
+  check_mode: false   # read-only; its result gates the import task's `when`
+
+- name: Import ejabberd MySQL schema (new schema)
+  community.mysql.mysql_db:
+    name: "{{ mysql_ejabberd_db }}"
+    state: import
+    target: /usr/share/ejabberd/sql/mysql.new.sql
+    login_unix_socket: /run/mysqld/mysqld.sock
+  when: ejabberd_schema_check.rowcount[0] | int == 0
+
+# --- TLS: make sure the combined PEM exists & is owned by the ejabberd user now
+#     that the package has created that user (certbot ran the hook earlier, before
+#     the user existed). ---
+- name: Rebuild ejabberd cert PEM + fix ownership
+  ansible.builtin.command:
+    cmd: /etc/letsencrypt/renewal-hooks/deploy/kewlchats.sh
+  changed_when: false
+
+# --- Raise file-descriptor ceiling for the service (PAM limits don't apply) ---
+- name: Create ejabberd systemd override dir
+  ansible.builtin.file:
+    path: /etc/systemd/system/ejabberd.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Raise ejabberd LimitNOFILE
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/ejabberd.service.d/override.conf
+    content: |
+      [Service]
+      LimitNOFILE=100000
+      Environment=ERL_MAX_PORTS=120000
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart ejabberd
+
+# --- Main config ---
+- name: Deploy ejabberd.yml
+  ansible.builtin.template:
+    src: ejabberd.yml.j2
+    dest: /etc/ejabberd/ejabberd.yml
+    owner: ejabberd
+    group: ejabberd
+    mode: "0640"
+  notify: Restart ejabberd
+
+- name: Enable and start ejabberd
+  ansible.builtin.service:
+    name: ejabberd
+    enabled: true
+    state: started
+
+- name: Apply pending ejabberd restarts before admin/token tasks
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for ejabberd to accept commands
+  ansible.builtin.command: "{{ ejabberdctl_path }} status"
+  register: ej_status
+  until: ej_status.rc == 0
+  retries: 12
+  delay: 5
+  changed_when: false
+
+# --- Per-vhost admin account + OAuth API token ---
+- name: Provision each vhost (admin account + API token)
+  ansible.builtin.include_tasks: provision_vhost.yml
+  loop: "{{ sites }}"
+  loop_control:
+    loop_var: site
+    label: "{{ site.domain }}"
+
+# --- MAM 7-day retention trim (daily systemd timer) ---
+- name: Install MAM trim systemd units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - kewlchats-mam-trim.service
+    - kewlchats-mam-trim.timer
+  notify: Reload systemd
+
+- name: Enable MAM trim timer
+  ansible.builtin.systemd_service:
+    name: kewlchats-mam-trim.timer
+    enabled: true
+    state: started
+    daemon_reload: true

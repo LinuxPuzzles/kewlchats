@@ -1,0 +1,47 @@
+---
+- name: Require an alert recipient
+  ansible.builtin.assert:
+    that:
+      - monit_alert_email is defined
+      - monit_alert_email | length > 0
+      - monit_alert_email != "CHANGE_ME"
+    fail_msg: "Set monit_alert_email in group_vars/all/provided.yml before enabling monit."
+    quiet: true
+
+- name: Install monit
+  ansible.builtin.apt:
+    name: monit
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Deploy monit global config (mailserver + alerting)
+  ansible.builtin.template:
+    src: global.conf.j2
+    dest: /etc/monit/conf.d/00-kewlchats-global.conf
+    owner: root
+    group: root
+    mode: "0600"          # contains the Postmark token
+  no_log: true
+  notify: Reload monit
+
+- name: Deploy monit checks
+  ansible.builtin.template:
+    src: checks.conf.j2
+    dest: /etc/monit/conf.d/10-kewlchats-checks.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload monit
+
+- name: Validate monit configuration
+  ansible.builtin.command: monit -t
+  register: monit_test
+  changed_when: false
+  check_mode: false
+
+- name: Enable and start monit
+  ansible.builtin.service:
+    name: monit
+    enabled: true
+    state: started

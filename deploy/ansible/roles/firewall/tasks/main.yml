@@ -1,0 +1,79 @@
+---
+# ufw: default-deny incoming. The ejabberd ReST API (5280), MySQL (3306) and
+# Redis (6379) are NOT opened here — they bind to loopback, so default-deny is
+# the backstop. Only the public-facing client/web/media ports are allowed.
+
+- name: Set ufw default policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: incoming, policy: deny }
+    - { direction: outgoing, policy: allow }
+  notify: Reload ufw
+
+# Trust everything arriving over the tailnet (WireGuard-authenticated). This is
+# how SSH and the monit web UI are reached when Tailscale is enabled.
+- name: Allow all traffic on the tailscale interface
+  community.general.ufw:
+    rule: allow
+    direction: in
+    interface: tailscale0
+  when: tailscale_enabled | bool
+  notify: Reload ufw
+
+# SSH is "gated" when either Tailscale is on or explicit admin CIDRs are set —
+# in that case public port 22 is NOT opened to the world.
+- name: Allow SSH from admin CIDRs (public escape hatch)
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    src: "{{ item }}"
+  loop: "{{ ssh_admin_cidrs }}"
+  when: ssh_admin_cidrs | length > 0
+  notify: Reload ufw
+
+# Drift cleanup: when gated, remove any broad "allow 22 from anywhere" a previous
+# (ungated) run left behind. Deleting a non-existent rule is a no-op.
+- name: Remove broad public SSH allow when gated
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    delete: true
+  when: (tailscale_enabled | bool) or (ssh_admin_cidrs | length > 0)
+  notify: Reload ufw
+
+- name: Allow SSH from anywhere (only when not gated)
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+  when:
+    - not (tailscale_enabled | bool)
+    - ssh_admin_cidrs | length == 0
+  notify: Reload ufw
+
+- name: Allow public service ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  loop:
+    - { port: "80", proto: tcp }      # nginx HTTP (redirect + ACME fallback)
+    - { port: "443", proto: tcp }     # nginx HTTPS
+    - { port: "5222", proto: tcp }    # XMPP c2s (STARTTLS) for native apps
+    - { port: "5478", proto: udp }    # STUN/TURN signaling
+  notify: Reload ufw
+
+- name: Allow TURN relay UDP port range
+  community.general.ufw:
+    rule: allow
+    port: "{{ turn_min_port }}:{{ turn_max_port }}"
+    proto: udp
+  notify: Reload ufw
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled

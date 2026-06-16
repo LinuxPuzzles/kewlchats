@@ -1,0 +1,119 @@
+---
+# Non-secret configuration for the box. Secrets you supply live in provided.yml
+# (gitignored); generated secrets are created on-box (see roles/secrets).
+
+# --- Sites -------------------------------------------------------------------
+# The SAME Laravel codebase is deployed once per site (separate checkout, DB,
+# .env, queue worker and nginx vhost). Each site's `domain` is also an ejabberd
+# virtual host; the two vhosts share one ejabberd node and route to each other
+# internally (no s2s needed). `aliases` 301-redirect to the canonical `domain`.
+sites:
+  - name: kewlchats
+    domain: kewlchats.net
+    aliases:
+      - www.kewlchats.net
+    cert_name: kewlchats.net            # /etc/letsencrypt/live/<cert_name>/
+    mail_from: "hello@kewlchats.net"
+
+  - name: ready2im
+    domain: ready2.im
+    aliases:
+      - www.ready2.im
+      - ready2im.com
+      - www.ready2im.com
+      - ready2im.net
+      - www.ready2im.net
+      - ready2im.org
+      - www.ready2im.org
+    cert_name: ready2.im
+    mail_from: "hello@ready2.im"
+
+# Derived per-site values (don't override):
+#   app_dir   = {{ app_root }}/<name>      db_name/db_user = <name>
+#   admin JID = admin@<domain>             muc domain      = conference.<domain>
+
+# --- Certificates -------------------------------------------------------------
+# One wildcard cert per primary domain (the wildcard covers conference.*/pubsub.*
+# so ejabberd stops hunting). The ready2.im cert also carries the alias domains so
+# their HTTPS->canonical redirect has a valid cert. All via Bunny DNS-01.
+certificates:
+  - name: kewlchats.net
+    domains:
+      - kewlchats.net
+      - "*.kewlchats.net"
+  - name: ready2.im
+    domains:
+      - ready2.im
+      - "*.ready2.im"
+      - ready2im.com
+      - www.ready2im.com
+      - ready2im.net
+      - www.ready2im.net
+      - ready2im.org
+      - www.ready2im.org
+
+# --- App / filesystem ---------------------------------------------------------
+app_root: /var/www
+app_user: www-data
+app_group: www-data
+secrets_dir: /root/.kewlchats
+
+# --- Toolchain versions -------------------------------------------------------
+php_version: "8.5"
+php_fpm_socket: "/run/php/php{{ php_version }}-fpm.sock"
+nodejs_major: "22"
+
+# --- PHP tuning (4c/8t, 32GB box) --------------------------------------------
+php_memory_limit: "512M"
+php_fpm_pm: dynamic
+php_fpm_max_children: 24
+php_fpm_start_servers: 6
+php_fpm_min_spare: 4
+php_fpm_max_spare: 12
+php_fpm_max_requests: 500
+php_opcache_memory: 256
+php_opcache_max_files: 20000
+
+# --- MySQL --------------------------------------------------------------------
+# Each site gets its own DB + user (name == site name). ejabberd has its own DB
+# shared by all vhosts (vhost is a column in ejabberd's schema).
+mysql_ejabberd_db: ejabberd
+mysql_ejabberd_user: ejabberd
+mysql_innodb_buffer_pool: "2G"
+
+# --- Redis (shared; Laravel prefixes keys per app) ----------------------------
+redis_maxmemory: "1gb"
+
+# --- ejabberd -----------------------------------------------------------------
+ejabberd_certs_dir: /etc/ejabberd/certs
+le_live_base: /etc/letsencrypt/live
+# Cert names ejabberd needs PEMs for = the per-site primary certs.
+ejabberd_cert_names: "{{ sites | map(attribute='cert_name') | list }}"
+mam_retention_days: 7
+turn_min_port: 49152
+turn_max_port: 65535
+turn_public_ipv4_effective: "{{ turn_public_ipv4 | default('') | ternary(turn_public_ipv4 | default(''), ansible_default_ipv4.address) }}"
+
+# --- Let's Encrypt ------------------------------------------------------------
+certbot_venv: /opt/certbot
+
+# --- Mail (Postmark; from-address is per-site) --------------------------------
+mail_host: smtp.postmarkapp.com
+mail_port: 587
+mail_from_name: KewlChats
+
+# --- Monitoring (monit; emails monit_alert_email from provided.yml) -----------
+# from-domain must be a verified Postmark sender (kewlchats.net is).
+monit_mail_from: "monit@{{ sites[0].domain }}"
+monit_disk_threshold: 85
+
+# --- Tailscale ----------------------------------------------------------------
+# Enabled automatically when tailscale_authkey is set in provided.yml. When on,
+# the box joins your tailnet and SSH + the monit web UI are gated to it.
+tailscale_enabled: "{{ (tailscale_authkey | default('') | length) > 0 }}"
+tailscale_hostname: kewlchats
+tailnet_cidr: "100.64.0.0/10"
+monit_httpd_port: 2812
+
+# --- Firewall -----------------------------------------------------------------
+ssh_admin_cidrs: []

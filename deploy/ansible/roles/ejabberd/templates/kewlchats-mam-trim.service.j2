@@ -1,0 +1,8 @@
+[Unit]
+Description=Trim ejabberd MAM archive to {{ mam_retention_days }} days (kewlchats)
+After=ejabberd.service
+Requires=ejabberd.service
+
+[Service]
+Type=oneshot
+ExecStart={{ ejabberdctl_path }} delete_old_mam_messages all {{ mam_retention_days }}

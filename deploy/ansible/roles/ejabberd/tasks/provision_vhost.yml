@@ -1,0 +1,56 @@
+---
+# Per-vhost provisioning, looped from main.yml with loop_var `site`.
+# Registers admin@<domain> (idempotent) and mints its OAuth API token once.
+
+- name: "[{{ site.domain }}] Register admin account"
+  ansible.builtin.command:
+    argv:
+      - "{{ ejabberdctl_path }}"
+      - register
+      - admin
+      - "{{ site.domain }}"
+      - "{{ lookup('vars', 'ejabberd_admin_password_' ~ site.name) }}"
+  register: admin_register
+  changed_when: admin_register.rc == 0
+  failed_when:
+    - admin_register.rc != 0
+    - "'already registered' not in (admin_register.stdout + admin_register.stderr)"
+  no_log: true
+
+- name: "[{{ site.domain }}] Check for existing API token"
+  ansible.builtin.stat:
+    path: "{{ secrets_dir }}/xmpp_api_token_{{ site.name }}"
+  register: token_file
+
+- name: "[{{ site.domain }}] Issue OAuth API token"
+  ansible.builtin.command:
+    argv:
+      - "{{ ejabberdctl_path }}"
+      - oauth_issue_token
+      - "admin@{{ site.domain }}"
+      - "31536000"
+      - "ejabberd:admin"
+  register: token_issue
+  changed_when: true
+  when: not token_file.stat.exists
+
+- name: "[{{ site.domain }}] Persist issued API token"
+  ansible.builtin.copy:
+    dest: "{{ secrets_dir }}/xmpp_api_token_{{ site.name }}"
+    content: "{{ token_issue.stdout_lines[0].split() | first }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when: not token_file.stat.exists
+  no_log: true
+
+- name: "[{{ site.domain }}] Load API token into a fact"
+  ansible.builtin.slurp:
+    src: "{{ secrets_dir }}/xmpp_api_token_{{ site.name }}"
+  register: token_slurp
+  no_log: true
+
+- name: "[{{ site.domain }}] Set API token fact"
+  ansible.builtin.set_fact:
+    "xmpp_api_token_{{ site.name }}": "{{ token_slurp.content | b64decode | trim }}"
+  no_log: true

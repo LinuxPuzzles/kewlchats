@@ -1,12 +1,16 @@
 # ejabberd — runbook
 
-The XMPP server behind KewlChats. `ejabberd.yml` here is the **source of truth**,
-symlinked to the live config path. It encodes the locked decisions (MAM off, federation
-off, carbons on, short offline spool, in-band registration denied, near-zero MUC history).
+The XMPP server behind KewlChats. This `ejabberd.yml` is the **dev source of truth**
+(symlinked to the live config path on the Mac mini). It encodes the locked decisions
+(federation off, carbons on, short offline spool, in-band registration denied, small MUC
+history). NOTE: dev still has `mod_mam` *off*; **prod runs a 7-day MAM** — see below.
 
-- **Dev (Mac mini):** Homebrew, Mnesia store.
-- **Prod (Xeon):** distro package, MySQL store, Let's Encrypt certs. Same `ejabberd.yml`
-  with `certfiles` filled in and an SQL backend configured.
+- **Dev (Mac mini):** Homebrew, Mnesia store, this file.
+- **Prod:** provisioned by **Ansible** (`deploy/ansible/`), not by hand and not via the old
+  Marathon/LXD model. A single Ubuntu 24.04 box; the prod ejabberd config is *generated* from
+  `deploy/ansible/roles/ejabberd/templates/ejabberd.yml.j2` (Process-One package, MySQL store,
+  Let's Encrypt wildcard cert, no IPv6, loopback-only ReST API, 7-day MAM, built-in STUN/TURN).
+  Don't hand-edit prod config — change the template. (The retired `PROD-LXD.md` has been removed.)
 
 ## Dev (Homebrew) layout
 

@@ -1,0 +1,114 @@
+---
+# Per-site deploy, looped from main.yml with loop_var `site`.
+- name: "[{{ site.name }}] Ensure app directory exists"
+  ansible.builtin.file:
+    path: "{{ app_root }}/{{ site.name }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+
+- name: "[{{ site.name }}] Clone / update the application"
+  ansible.builtin.git:
+    repo: "{{ git_repo_url }}"
+    dest: "{{ app_root }}/{{ site.name }}"
+    version: "{{ git_branch }}"
+    key_file: /root/.ssh/kewlchats_deploy
+    accept_hostkey: true
+    force: true
+  register: site_checkout
+
+# Detect whether the build artifacts exist, so an interrupted prior run (cloned
+# but not built) still gets rebuilt even though git reports "no change".
+- name: "[{{ site.name }}] Check for composer + built assets"
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ app_root }}/{{ site.name }}/vendor/autoload.php"
+    - "{{ app_root }}/{{ site.name }}/public/build"
+  register: build_artifacts
+
+- name: "[{{ site.name }}] Set rebuild flags"
+  ansible.builtin.set_fact:
+    code_changed: "{{ site_checkout.changed }}"
+    vendor_present: "{{ build_artifacts.results[0].stat.exists }}"
+    assets_present: "{{ build_artifacts.results[1].stat.exists }}"
+
+- name: "[{{ site.name }}] Install PHP dependencies (composer)"
+  ansible.builtin.command:
+    cmd: composer install --no-dev --optimize-autoloader --no-interaction
+    chdir: "{{ app_root }}/{{ site.name }}"
+  environment:
+    COMPOSER_ALLOW_SUPERUSER: "1"
+  when: code_changed or not vendor_present
+  register: composer_install
+  changed_when: "'Nothing to install' not in composer_install.stdout"
+
+- name: "[{{ site.name }}] Install Node dependencies (npm ci)"
+  ansible.builtin.command:
+    cmd: npm ci
+    chdir: "{{ app_root }}/{{ site.name }}"
+  when: code_changed or not assets_present
+  changed_when: true
+
+- name: "[{{ site.name }}] Build front-end assets (Converse publish + Vite)"
+  ansible.builtin.command:
+    cmd: npm run build
+    chdir: "{{ app_root }}/{{ site.name }}"
+  when: code_changed or not assets_present
+  changed_when: true
+
+- name: "[{{ site.name }}] Render .env"
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_root }}/{{ site.name }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0640"
+  no_log: true
+  register: env_render
+  notify: Restart kewlchats workers
+
+- name: "[{{ site.name }}] Set application ownership"
+  ansible.builtin.file:
+    path: "{{ app_root }}/{{ site.name }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: true
+
+- name: "[{{ site.name }}] Ensure writable runtime directories"
+  ansible.builtin.file:
+    path: "{{ app_root }}/{{ site.name }}/{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0775"
+    recurse: true
+  loop:
+    - storage
+    - bootstrap/cache
+
+- name: "[{{ site.name }}] Run database migrations"
+  ansible.builtin.command:
+    cmd: php artisan migrate --force
+    chdir: "{{ app_root }}/{{ site.name }}"
+  become_user: "{{ app_user }}"
+  when: code_changed
+  register: migrate_out
+  changed_when: "'Nothing to migrate' not in migrate_out.stdout"
+
+# config:cache bakes the .env into a compiled file, so re-cache whenever code OR
+# the rendered .env changed (otherwise the app keeps serving stale config).
+- name: "[{{ site.name }}] Cache config, routes, views, events"
+  ansible.builtin.command:
+    cmd: "php artisan {{ item }}"
+    chdir: "{{ app_root }}/{{ site.name }}"
+  become_user: "{{ app_user }}"
+  loop:
+    - config:cache
+    - route:cache
+    - view:cache
+    - event:cache
+  when: code_changed or env_render.changed
+  changed_when: true
+  notify: Restart kewlchats workers

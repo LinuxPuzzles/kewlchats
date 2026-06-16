@@ -1,0 +1,18 @@
+[Unit]
+Description=KewlChats queue worker ({{ site.name }})
+After=network.target redis-server.service mysql.service ejabberd.service
+Requires=redis-server.service
+
+[Service]
+User={{ app_user }}
+Group={{ app_group }}
+Restart=always
+RestartSec=5
+WorkingDirectory={{ app_root }}/{{ site.name }}
+ExecStart=/usr/bin/php{{ php_version }} {{ app_root }}/{{ site.name }}/artisan queue:work redis \
+  --tries=5 --backoff=10 --timeout=120 --sleep=3 --max-jobs=1000 --max-time=3600
+# Graceful restart: let the worker finish the current job.
+ExecReload=/bin/kill -USR2 $MAINPID
+
+[Install]
+WantedBy=multi-user.target

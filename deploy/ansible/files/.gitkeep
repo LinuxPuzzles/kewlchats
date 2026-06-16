@@ -1,0 +1,2 @@
+# Drop the repo's read-only deploy private key here as `deploy_key` (chmod 600)
+# before the first run. Its public half goes on the git host as a deploy key.

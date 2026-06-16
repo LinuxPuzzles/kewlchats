@@ -1,0 +1,38 @@
+---
+# Copy this file to group_vars/all/provided.yml (gitignored) and fill in real
+# values BEFORE the first run:
+#     cp provided.example.yml group_vars/all/provided.yml
+# These are the only things you supply by hand — everything else is either in
+# group_vars/all/main.yml (non-secret) or generated on-box (roles/secrets).
+
+# Bunny DNS API token — used by certbot's dns-bunny plugin for the DNS-01 wildcard.
+bunny_api_key: "CHANGE_ME"
+
+# Email Let's Encrypt uses for expiry notices.
+letsencrypt_email: "you@example.com"
+
+# Postmark Server API token. Postmark uses the SAME token as SMTP username AND password.
+postmark_token: "CHANGE_ME"
+
+# Git source for the app. Use SSH so the deploy key (files/deploy_key) authenticates.
+git_repo_url: "git@github.com:youruser/kewlchats.git"
+git_branch: "main"
+
+# Where monit emails alerts (service down, disk full, cert expiring, etc.).
+monit_alert_email: "you@example.com"
+
+# Optional: Tailscale auth key (reusable or ephemeral; Tailscale admin console →
+# Settings → Keys). If set, the box joins your tailnet and SSH + the monit web UI
+# are gated to it (public port 22 is closed). Leave "" to skip Tailscale.
+# IMPORTANT: once gated, run Ansible over the tailnet (point inventory at the
+# Tailscale hostname/IP) — public SSH will no longer be reachable.
+tailscale_authkey: ""
+
+# Optional: restrict SSH (port 22) to these CIDRs. Leave [] to allow from anywhere.
+# e.g. ["203.0.113.4/32", "100.64.0.0/10"]
+ssh_admin_cidrs: []
+
+# Optional: override the public IPv4 the TURN relay advertises. Leave "" to
+# auto-detect from the default route (correct on a normal dedicated server;
+# set this only if the box is behind NAT or multi-homed).
+turn_public_ipv4: ""

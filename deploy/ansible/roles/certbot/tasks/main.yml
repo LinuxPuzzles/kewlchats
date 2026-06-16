@@ -1,0 +1,94 @@
+---
+- name: Install certbot venv prerequisites
+  ansible.builtin.apt:
+    name:
+      - python3-venv
+      - python3-pip
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create certbot virtualenv with certbot + dns-bunny plugin
+  ansible.builtin.pip:
+    name:
+      - certbot
+      - certbot-dns-bunny
+    state: present
+    virtualenv: "{{ certbot_venv }}"
+    virtualenv_command: python3 -m venv
+
+- name: Symlink certbot into PATH
+  ansible.builtin.file:
+    src: "{{ certbot_venv }}/bin/certbot"
+    dest: /usr/local/bin/certbot
+    state: link
+
+- name: Write Bunny DNS credentials
+  ansible.builtin.copy:
+    dest: "{{ secrets_dir }}/bunny.ini"
+    content: "dns_bunny_api_key = {{ bunny_api_key }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Ensure Let's Encrypt deploy-hook directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install cert deploy hook (rebuilds ejabberd PEM + reloads services)
+  ansible.builtin.template:
+    src: deploy-hook.sh.j2
+    dest: /etc/letsencrypt/renewal-hooks/deploy/kewlchats.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Obtain certificates via Bunny DNS-01
+  ansible.builtin.command:
+    # Interleave "-d <domain>" tokens as separate argv elements. Using argv (no
+    # shell) means the wildcard "*" is passed literally, never glob-expanded.
+    argv: >-
+      {{
+        ['/usr/local/bin/certbot', 'certonly', '--non-interactive', '--agree-tos',
+         '-m', letsencrypt_email,
+         '--authenticator', 'dns-bunny',
+         '--dns-bunny-credentials', secrets_dir ~ '/bunny.ini',
+         '--dns-bunny-propagation-seconds', '60',
+         '--cert-name', item.name]
+        + (item.domains | map('regex_replace', '^', '-d ') | join(' ')).split(' ')
+      }}
+    creates: "{{ le_live_base }}/{{ item.name }}/fullchain.pem"
+  loop: "{{ certificates }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: certbot_issue
+  changed_when: certbot_issue.rc == 0
+
+- name: Run deploy hook once (build combined PEM for any services present)
+  ansible.builtin.command:
+    cmd: /etc/letsencrypt/renewal-hooks/deploy/kewlchats.sh
+  changed_when: false
+
+- name: Install certbot renewal systemd units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - kewlchats-certbot-renew.service
+    - kewlchats-certbot-renew.timer
+  notify: Reload systemd
+
+- name: Enable certbot renewal timer
+  ansible.builtin.systemd_service:
+    name: kewlchats-certbot-renew.timer
+    enabled: true
+    state: started
+    daemon_reload: true

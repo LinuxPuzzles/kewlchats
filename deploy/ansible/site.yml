@@ -1,0 +1,39 @@
+---
+# KewlChats — full single-box provision. Idempotent; safe to re-run.
+#
+#   ansible-playbook site.yml                 # full converge
+#   ansible-playbook site.yml --check         # dry run
+#   ansible-playbook site.yml --tags app      # just redeploy the app
+#
+# Roles run in dependency order. DNS-01 means certs are obtained before the
+# services that consume them; ejabberd runs before the app because it mints the
+# XMPP API token the app's .env needs.
+- name: Provision KewlChats
+  hosts: kewlchats
+  become: true
+  pre_tasks:
+    - name: Fail early if provided.yml has not been created
+      ansible.builtin.assert:
+        that:
+          - bunny_api_key is defined and bunny_api_key != "CHANGE_ME"
+          - postmark_token is defined and postmark_token != "CHANGE_ME"
+          - git_repo_url is defined
+        fail_msg: >-
+          Missing required vars. Copy provided.example.yml to
+          group_vars/all/provided.yml and fill it in before running.
+        quiet: true
+  roles:
+    - { role: common,       tags: [common] }
+    - { role: tailscale,    tags: [tailscale], when: "tailscale_enabled | bool" }
+    - { role: firewall,     tags: [firewall] }
+    - { role: secrets,      tags: [always] }
+    - { role: mysql,        tags: [mysql] }
+    - { role: redis,        tags: [redis] }
+    - { role: php,          tags: [php] }
+    - { role: nodejs,       tags: [nodejs] }
+    - { role: certbot,      tags: [certbot, tls] }
+    - { role: ejabberd,     tags: [ejabberd, xmpp] }
+    - { role: app,          tags: [app] }
+    - { role: queue_worker, tags: [app, queue] }
+    - { role: nginx,        tags: [nginx, web] }
+    - { role: monit,        tags: [monit, monitoring] }
