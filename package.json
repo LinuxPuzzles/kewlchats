@@ -5,7 +5,7 @@
     "scripts": {
         "build": "npm run converse:publish && vite build",
         "dev": "vite",
-        "converse:publish": "rsync -a --delete --exclude='*.map' node_modules/converse.js/dist/ public/vendor/converse/",
+        "converse:publish": "mkdir -p public/vendor/converse && rsync -a --delete --exclude='*.map' node_modules/converse.js/dist/ public/vendor/converse/",
         "webchat:verify": "node scripts/webchat-verify.mjs"
     },
     "devDependencies": {
