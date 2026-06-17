@@ -37,22 +37,9 @@
   ansible.builtin.set_fact:
     ejabberdctl_path: "{{ ejabberdctl_which.stdout }}"
 
-# --- Load the MySQL schema (new schema) once ---
-- name: Check whether ejabberd schema is already loaded
-  community.mysql.mysql_query:
-    login_db: "{{ mysql_ejabberd_db }}"
-    login_unix_socket: /run/mysqld/mysqld.sock
-    query: "SHOW TABLES LIKE 'users'"
-  register: ejabberd_schema_check
-  check_mode: false   # read-only; its result gates the import task's `when`
-
-- name: Import ejabberd MySQL schema (new schema)
-  community.mysql.mysql_db:
-    name: "{{ mysql_ejabberd_db }}"
-    state: import
-    target: /usr/share/ejabberd/sql/mysql.new.sql
-    login_unix_socket: /run/mysqld/mysqld.sock
-  when: ejabberd_schema_check.rowcount[0] | int == 0
+# Note: no manual SQL schema import. ejabberd's `update_sql_schema` (default true
+# since 24.06; set explicitly in ejabberd.yml.j2) creates/updates the MySQL tables
+# itself on first boot with the SQL backend — idempotent and version-correct.
 
 # --- TLS: make sure the combined PEM exists & is owned by the ejabberd user now
 #     that the package has created that user (certbot ran the hook earlier, before
@@ -87,7 +74,7 @@
 - name: Deploy ejabberd.yml
   ansible.builtin.template:
     src: ejabberd.yml.j2
-    dest: /etc/ejabberd/ejabberd.yml
+    dest: "{{ ejabberd_conf_dir }}/ejabberd.yml"
     owner: ejabberd
     group: ejabberd
     mode: "0640"

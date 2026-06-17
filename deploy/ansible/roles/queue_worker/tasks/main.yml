@@ -2,7 +2,7 @@
 - name: Install per-site queue worker units
   ansible.builtin.template:
     src: worker.service.j2
-    dest: "/etc/systemd/system/{{ item.name }}-worker.service"
+    dest: "/etc/systemd/system/{{ site.name }}-worker.service"
     owner: root
     group: root
     mode: "0644"

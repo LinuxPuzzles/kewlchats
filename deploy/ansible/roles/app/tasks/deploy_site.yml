@@ -1,21 +1,52 @@
 ---
-# Per-site deploy, looped from main.yml with loop_var `site`.
-- name: "[{{ site.name }}] Ensure app directory exists"
+# Per-site deploy, looped from main.yml with loop_var `site`. Everything that
+# touches the code runs AS the site's user ({{ site.name }}) so the checkout is
+# owned by that user — git sees a repo it owns (no "dubious ownership"), and the
+# tree stays isolated from other sites. HOME is set explicitly on every become
+# task because `become_user` does NOT reset it (composer/npm/git would otherwise
+# try to write into root's home).
+- name: "[{{ site.name }}] Per-site path facts"
+  ansible.builtin.set_fact:
+    site_dir: "{{ app_root }}/{{ site.name }}"
+    site_home: "{{ site_home_base }}/{{ site.name }}"
+    site_key: "{{ site_home_base }}/{{ site.name }}/.ssh/kewlchats_deploy"
+
+- name: "[{{ site.name }}] Ensure ~/.ssh exists"
   ansible.builtin.file:
-    path: "{{ app_root }}/{{ site.name }}"
+    path: "{{ site_home }}/.ssh"
     state: directory
-    owner: "{{ app_user }}"
-    group: "{{ app_group }}"
+    owner: "{{ site.name }}"
+    group: "{{ site.name }}"
+    mode: "0700"
+
+- name: "[{{ site.name }}] Install git deploy key (owned by the site user)"
+  ansible.builtin.copy:
+    src: deploy_key
+    dest: "{{ site_key }}"
+    owner: "{{ site.name }}"
+    group: "{{ site.name }}"
+    mode: "0600"
+
+- name: "[{{ site.name }}] Ensure app directory exists (owned by the site user)"
+  ansible.builtin.file:
+    path: "{{ site_dir }}"
+    state: directory
+    owner: "{{ site.name }}"
+    group: "{{ site.name }}"
     mode: "0755"
 
 - name: "[{{ site.name }}] Clone / update the application"
   ansible.builtin.git:
     repo: "{{ git_repo_url }}"
-    dest: "{{ app_root }}/{{ site.name }}"
+    dest: "{{ site_dir }}"
     version: "{{ git_branch }}"
-    key_file: /root/.ssh/kewlchats_deploy
+    key_file: "{{ site_key }}"
     accept_hostkey: true
     force: true
+  become: true
+  become_user: "{{ site.name }}"
+  environment:
+    HOME: "{{ site_home }}"
   register: site_checkout
 
 # Detect whether the build artifacts exist, so an interrupted prior run (cloned
@@ -24,8 +55,8 @@
   ansible.builtin.stat:
     path: "{{ item }}"
   loop:
-    - "{{ app_root }}/{{ site.name }}/vendor/autoload.php"
-    - "{{ app_root }}/{{ site.name }}/public/build"
+    - "{{ site_dir }}/vendor/autoload.php"
+    - "{{ site_dir }}/public/build"
   register: build_artifacts
 
 - name: "[{{ site.name }}] Set rebuild flags"
@@ -37,9 +68,12 @@
 - name: "[{{ site.name }}] Install PHP dependencies (composer)"
   ansible.builtin.command:
     cmd: composer install --no-dev --optimize-autoloader --no-interaction
-    chdir: "{{ app_root }}/{{ site.name }}"
+    chdir: "{{ site_dir }}"
+  become: true
+  become_user: "{{ site.name }}"
   environment:
-    COMPOSER_ALLOW_SUPERUSER: "1"
+    HOME: "{{ site_home }}"
+    COMPOSER_HOME: "{{ site_home }}/.composer"
   when: code_changed or not vendor_present
   register: composer_install
   changed_when: "'Nothing to install' not in composer_install.stdout"
@@ -47,41 +81,42 @@
 - name: "[{{ site.name }}] Install Node dependencies (npm ci)"
   ansible.builtin.command:
     cmd: npm ci
-    chdir: "{{ app_root }}/{{ site.name }}"
+    chdir: "{{ site_dir }}"
+  become: true
+  become_user: "{{ site.name }}"
+  environment:
+    HOME: "{{ site_home }}"
   when: code_changed or not assets_present
   changed_when: true
 
 - name: "[{{ site.name }}] Build front-end assets (Converse publish + Vite)"
   ansible.builtin.command:
     cmd: npm run build
-    chdir: "{{ app_root }}/{{ site.name }}"
+    chdir: "{{ site_dir }}"
+  become: true
+  become_user: "{{ site.name }}"
+  environment:
+    HOME: "{{ site_home }}"
   when: code_changed or not assets_present
   changed_when: true
 
 - name: "[{{ site.name }}] Render .env"
   ansible.builtin.template:
     src: env.j2
-    dest: "{{ app_root }}/{{ site.name }}/.env"
-    owner: "{{ app_user }}"
-    group: "{{ app_group }}"
+    dest: "{{ site_dir }}/.env"
+    owner: "{{ site.name }}"
+    group: "{{ site.name }}"
     mode: "0640"
   no_log: true
   register: env_render
   notify: Restart kewlchats workers
 
-- name: "[{{ site.name }}] Set application ownership"
-  ansible.builtin.file:
-    path: "{{ app_root }}/{{ site.name }}"
-    owner: "{{ app_user }}"
-    group: "{{ app_group }}"
-    recurse: true
-
 - name: "[{{ site.name }}] Ensure writable runtime directories"
   ansible.builtin.file:
-    path: "{{ app_root }}/{{ site.name }}/{{ item }}"
+    path: "{{ site_dir }}/{{ item }}"
     state: directory
-    owner: "{{ app_user }}"
-    group: "{{ app_group }}"
+    owner: "{{ site.name }}"
+    group: "{{ site.name }}"
     mode: "0775"
     recurse: true
   loop:
@@ -90,9 +125,12 @@
 
 - name: "[{{ site.name }}] Run database migrations"
   ansible.builtin.command:
-    cmd: php artisan migrate --force
-    chdir: "{{ app_root }}/{{ site.name }}"
-  become_user: "{{ app_user }}"
+    cmd: "php{{ php_version }} artisan migrate --force"
+    chdir: "{{ site_dir }}"
+  become: true
+  become_user: "{{ site.name }}"
+  environment:
+    HOME: "{{ site_home }}"
   when: code_changed
   register: migrate_out
   changed_when: "'Nothing to migrate' not in migrate_out.stdout"
@@ -101,9 +139,12 @@
 # the rendered .env changed (otherwise the app keeps serving stale config).
 - name: "[{{ site.name }}] Cache config, routes, views, events"
   ansible.builtin.command:
-    cmd: "php artisan {{ item }}"
-    chdir: "{{ app_root }}/{{ site.name }}"
-  become_user: "{{ app_user }}"
+    cmd: "php{{ php_version }} artisan {{ item }}"
+    chdir: "{{ site_dir }}"
+  become: true
+  become_user: "{{ site.name }}"
+  environment:
+    HOME: "{{ site_home }}"
   loop:
     - config:cache
     - route:cache

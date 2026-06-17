@@ -53,14 +53,19 @@ certificates:
       - www.ready2im.org
 
 # --- App / filesystem ---------------------------------------------------------
+# Each site runs as its OWN unprivileged user named after the site (created in the
+# common role): that user owns the checkout and runs the site's PHP-FPM pool and
+# queue worker — the multi-tenant isolation boundary (one site's PHP process can't
+# read another's code/.env/storage). nginx runs as web_user and reaches each
+# site's FPM socket (/run/php/<site>.sock), which is owned by web_user.
 app_root: /var/www
-app_user: www-data
-app_group: www-data
+site_home_base: /home          # per-site service-account homes (~/.ssh, caches)
+web_user: www-data             # nginx + owner of the per-site FPM sockets
+web_group: www-data
 secrets_dir: /root/.kewlchats
 
 # --- Toolchain versions -------------------------------------------------------
 php_version: "8.5"
-php_fpm_socket: "/run/php/php{{ php_version }}-fpm.sock"
 nodejs_major: "22"
 
 # --- PHP tuning (4c/8t, 32GB box) --------------------------------------------
@@ -85,7 +90,10 @@ mysql_innodb_buffer_pool: "2G"
 redis_maxmemory: "1gb"
 
 # --- ejabberd -----------------------------------------------------------------
-ejabberd_certs_dir: /etc/ejabberd/certs
+# The Process-One .deb installs under /opt/ejabberd (NOT the distro /etc/ejabberd
+# layout): config is /opt/ejabberd/conf/ejabberd.yml, logs /opt/ejabberd/logs.
+ejabberd_conf_dir: /opt/ejabberd/conf
+ejabberd_certs_dir: "{{ ejabberd_conf_dir }}/certs"
 le_live_base: /etc/letsencrypt/live
 # Cert names ejabberd needs PEMs for = the per-site primary certs.
 ejabberd_cert_names: "{{ sites | map(attribute='cert_name') | list }}"

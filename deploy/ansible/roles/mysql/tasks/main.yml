@@ -35,7 +35,7 @@
 # Root connects over the unix socket as the local root user (Ubuntu default
 # auth_socket); no root password needed when running as root.
 - name: Create per-site application databases
-  community.mysql.mysql_db:
+  ansible.mysql.mysql_db:
     name: "{{ item.name }}"
     encoding: utf8mb4
     collation: utf8mb4_unicode_ci
@@ -46,7 +46,7 @@
     label: "{{ item.name }}"
 
 - name: Create per-site application DB users
-  community.mysql.mysql_user:
+  ansible.mysql.mysql_user:
     name: "{{ item.name }}"
     password: "{{ lookup('vars', 'db_password_' ~ item.name) }}"
     host: 127.0.0.1
@@ -59,7 +59,7 @@
   no_log: true
 
 - name: Create ejabberd database
-  community.mysql.mysql_db:
+  ansible.mysql.mysql_db:
     name: "{{ mysql_ejabberd_db }}"
     encoding: utf8mb4
     collation: utf8mb4_unicode_ci
@@ -69,7 +69,7 @@
 # ejabberd's Erlang MySQL driver needs mysql_native_password (MySQL 8 defaults
 # to caching_sha2_password, which it can't speak).
 - name: Create ejabberd DB user (mysql_native_password)
-  community.mysql.mysql_user:
+  ansible.mysql.mysql_user:
     name: "{{ mysql_ejabberd_user }}"
     host: 127.0.0.1
     plugin: mysql_native_password

@@ -4,7 +4,7 @@ After=network.target ejabberd.service
 
 [Service]
 Type=oneshot
-User={{ app_user }}
-Group={{ app_group }}
+User={{ site.name }}
+Group={{ site.name }}
 WorkingDirectory={{ app_root }}/{{ site.name }}
 ExecStart=/usr/bin/php{{ php_version }} {{ app_root }}/{{ site.name }}/artisan kewlchats:reconcile

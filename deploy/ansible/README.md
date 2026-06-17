@@ -14,8 +14,10 @@ back to the desired state.
 ## Two sites, one codebase, one ejabberd
 
 The same Laravel code is deployed **once per site** (see the `sites` list in
-`group_vars/all/main.yml`) — separate checkout, DB, `.env`, queue worker and nginx
-vhost each:
+`group_vars/all/main.yml`) — separate checkout, **Unix user**, DB, `.env`,
+**PHP-FPM pool**, queue worker and nginx vhost each. Each site runs as its own
+unprivileged user (named after the site), so one site's PHP process can't read
+another's code, `.env` (and its `APP_KEY`) or storage:
 
 | Site | Canonical | Aliases (301 → canonical) | XMPP vhost |
 |---|---|---|---|
@@ -113,8 +115,9 @@ of what it did last time. So the playbook is built around three categories:
      up, don't hand-delete them (deleting one mid-stream can desync a service).
    - **Let's Encrypt certs** — re-issuing every run would burn LE rate limits;
      renewal is the systemd timer's job, not the playbook's.
-   - **ejabberd admin accounts + API tokens, the SQL schema import** — minted/loaded
-     once; "already registered" is treated as success.
+   - **ejabberd admin accounts + API tokens** — minted once; "already registered"
+     is treated as success. (The SQL schema itself is created by ejabberd's own
+     `update_sql_schema` on first boot — not by the playbook.)
 3. **Undeclared — Ansible can't see it.** A user banned directly in ejabberd's web
    admin, a room created by hand, MAM rows: the playbook has no opinion on these.
    That's **XMPP control-plane drift**, and the answer is the `kewlchats:reconcile`
@@ -144,6 +147,10 @@ the role is skipped and SSH stays on its public/CIDR rules.
 - TLS 1.2/1.3, HSTS, security headers, dotfile/secret-extension denies in nginx.
 - PHP hardened (`disable_functions`, `expose_php=Off`, OPcache); fail2ban on SSH +
   nginx auth; SSH key-only.
+- **Per-site isolation:** each site's code/FPM-pool/worker runs as its own Unix
+  user with a DB user scoped to only its own database. Code is owned by that user
+  (not the web user); nginx (`www-data`) reaches each site's FPM socket but can't
+  read its `.env`.
 
 ## Monitoring
 

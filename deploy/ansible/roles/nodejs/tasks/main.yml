@@ -16,11 +16,20 @@
     mode: "0644"
 
 - name: Add NodeSource apt repository (Node {{ nodejs_major }})
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/nodesource.asc] https://deb.nodesource.com/node_{{ nodejs_major }}.x nodistro main"
-    filename: nodesource
+  ansible.builtin.deb822_repository:
+    name: nodesource
+    types: [deb]
+    uris: "https://deb.nodesource.com/node_{{ nodejs_major }}.x"
+    suites: [nodistro]
+    components: [main]
+    signed_by: /etc/apt/keyrings/nodesource.asc
     state: present
+  register: nodesource_repo
+
+- name: Update apt cache after adding NodeSource
+  ansible.builtin.apt:
     update_cache: true
+  when: nodesource_repo.changed
 
 - name: Install Node.js
   ansible.builtin.apt:

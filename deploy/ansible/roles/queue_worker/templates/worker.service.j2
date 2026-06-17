@@ -4,8 +4,8 @@ After=network.target redis-server.service mysql.service ejabberd.service
 Requires=redis-server.service
 
 [Service]
-User={{ app_user }}
-Group={{ app_group }}
+User={{ site.name }}
+Group={{ site.name }}
 Restart=always
 RestartSec=5
 WorkingDirectory={{ app_root }}/{{ site.name }}

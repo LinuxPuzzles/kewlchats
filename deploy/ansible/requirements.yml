@@ -2,5 +2,5 @@
 # Install with: ansible-galaxy collection install -r requirements.yml
 collections:
   - name: community.general   # ufw, timezone, ini_file
-  - name: community.mysql     # mysql_db, mysql_user, mysql_query
+  - name: ansible.mysql       # mysql_db, mysql_user, mysql_query (renamed from community.mysql)
   - name: ansible.posix       # sysctl, mount

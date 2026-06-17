@@ -18,12 +18,20 @@ hosts:
 
 loglevel: info
 
-auth_method: internal
+# Accounts live in MySQL (not Mnesia). auth_method is independent of default_db:
+# without this, default_db:sql would still leave authentication on internal/Mnesia.
+auth_method: sql
 
 certfiles:
 {% for cn in ejabberd_cert_names %}
   - {{ ejabberd_certs_dir }}/{{ cn }}.pem
 {% endfor %}
+
+## We manage TLS ourselves (certbot DNS-01 → the certfiles above). Disable
+## ejabberd's built-in ACME or it would try to issue its own certs via HTTP-01 on
+## port 80, fighting nginx. (auto is ON by default.) Renewal stays certbot's job.
+acme:
+  auto: false
 
 ## OAuth: Laravel mints short-lived X-OAUTH2 tokens for web chat and authenticates
 ## the ReST API with a bearer token.
@@ -39,6 +47,9 @@ sql_database: "{{ mysql_ejabberd_db }}"
 sql_username: "{{ mysql_ejabberd_user }}"
 sql_password: "{{ db_ejabberd_password }}"
 new_sql_schema: true
+# ejabberd creates/updates the SQL tables itself on startup (default true since
+# 24.06) — no manual `mysql.new.sql` import needed.
+update_sql_schema: true
 sql_pool_size: 8
 
 listen:
@@ -61,7 +72,6 @@ listen:
       /api: mod_http_api
       /bosh: mod_bosh
       /ws: ejabberd_http_ws
-      /.well-known/acme-challenge: ejabberd_acme
   -
     ## Built-in STUN/TURN for Jingle voice/video (no coturn).
     port: 5478

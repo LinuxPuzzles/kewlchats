@@ -1,21 +1,7 @@
 ---
-- name: Ensure root .ssh exists
-  ansible.builtin.file:
-    path: /root/.ssh
-    state: directory
-    owner: root
-    group: root
-    mode: "0700"
-
-- name: Install git deploy key
-  ansible.builtin.copy:
-    src: deploy_key
-    dest: /root/.ssh/kewlchats_deploy
-    owner: root
-    group: root
-    mode: "0600"
-
-# Deploy the same codebase once per site (own dir, .env, DB, caches).
+# Deploy the same codebase once per site, each AS its own unprivileged user
+# (created in the common role) for tenant isolation. The git deploy key is
+# installed per-user inside deploy_site.yml (the user that clones owns the key).
 - name: Deploy each site
   ansible.builtin.include_tasks: deploy_site.yml
   loop: "{{ sites }}"

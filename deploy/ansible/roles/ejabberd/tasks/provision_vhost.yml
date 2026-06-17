@@ -12,9 +12,12 @@
       - "{{ lookup('vars', 'ejabberd_admin_password_' ~ site.name) }}"
   register: admin_register
   changed_when: admin_register.rc == 0
+  # An existing admin is success (idempotent). ejabberd's CLI has used both
+  # "already registered" and "account already exists" across versions, so match
+  # the common substring case-insensitively. A real DB/host error won't contain it.
   failed_when:
     - admin_register.rc != 0
-    - "'already registered' not in (admin_register.stdout + admin_register.stderr)"
+    - "'already' not in (admin_register.stdout + admin_register.stderr) | lower"
   no_log: true
 
 - name: "[{{ site.domain }}] Check for existing API token"
