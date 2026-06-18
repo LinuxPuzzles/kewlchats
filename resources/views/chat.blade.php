@@ -63,6 +63,14 @@
                         discover_connection_methods: false,
                         whitelisted_plugins: ['kewlchats-xoauth2'],
                         auto_reconnect: true,
+                        // Disable XEP-0198 Stream Management. Its cross-reload *resume*
+                        // is buggy here: after a successful <resume> Converse keeps a
+                        // freshly-minted resource instead of the resumed one, then stamps
+                        // stanzas with a 'from' that no longer matches the session →
+                        // ejabberd returns <invalid-from/> and drops the stream (blank
+                        // page). We're an ephemeral, no-history "live room" anyway, so a
+                        // clean fresh bind per load is the right model — nothing to resume.
+                        enable_smacks: false,
                         allow_logout: false,
                         allow_registration: false,
                         muc_domain: @js(config('xmpp.muc_domain')),
