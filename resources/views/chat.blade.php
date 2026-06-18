@@ -63,6 +63,12 @@
                         discover_connection_methods: false,
                         whitelisted_plugins: ['kewlchats-xoauth2'],
                         auto_reconnect: true,
+                        @if (config('xmpp.web_chat.landing_room'))
+                        // Drop straight into the shared live lounge on load — "walk into
+                        // a room full of people," the whole KewlChats model. Shared by all
+                        // front-end sites so everyone lands together.
+                        auto_join_rooms: [@js(config('xmpp.web_chat.landing_room'))],
+                        @endif
                         // Disable XEP-0198 Stream Management. Its cross-reload *resume*
                         // is buggy here: after a successful <resume> Converse keeps a
                         // freshly-minted resource instead of the resumed one, then stamps

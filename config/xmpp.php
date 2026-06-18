@@ -66,6 +66,11 @@ return [
         // Short-lived: the browser refetches per session, so keep the SASL token's
         // window small (10 min) to limit the value of a leaked one.
         'token_ttl' => (int) env('XMPP_CHAT_TOKEN_TTL', 600),
+        // The room web chat drops users into on load. SHARED across all front-end
+        // sites (a full room JID, NOT per-site) so kewlchats.net + ready2.im land in
+        // the SAME live lounge — one network, deliberately not walled off. Create it
+        // once (persistent) via the admin UI on its host service.
+        'landing_room' => env('XMPP_LANDING_ROOM'),
     ],
 
     /*

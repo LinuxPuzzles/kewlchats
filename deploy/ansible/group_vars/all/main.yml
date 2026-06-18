@@ -93,6 +93,14 @@ php_opcache_max_files: 20000
 # shared by all vhosts (vhost is a column in ejabberd's schema).
 mysql_ejabberd_db: ejabberd
 mysql_ejabberd_user: ejabberd
+
+# --- Web chat shared lounge ---------------------------------------------------
+# The room web chat auto-joins on load, SHARED by every front-end site (one full
+# JID for all, NOT per-site) so kewlchats.net and ready2.im users land in the same
+# live room — one network, not walled off. Hosted on ready2.im (the public-facing
+# brand); both vhosts route to it internally (no s2s). Create it once, persistent,
+# via the ready2.im admin UI before relying on it.
+xmpp_landing_room: "lounge@conference.ready2.im"
 mysql_innodb_buffer_pool: "2G"
 
 # --- Redis (shared; Laravel prefixes keys per app) ----------------------------
