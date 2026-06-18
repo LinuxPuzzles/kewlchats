@@ -1,20 +1,71 @@
 ---
-- name: Install nginx
-  ansible.builtin.apt:
-    name: nginx
+# nginx + dynamic modules from Marathon's OWN signed repo (apt.host.toys, served via
+# Bunny) — the same source the Marathon nodes use after GetPageSpeed paywalled their
+# .debs. The repo mirrors the nginx.org MAINLINE binary (HTTP/3 built in) and every
+# module Depends: nginx (>= X, << X+1), so the matched set always moves together —
+# no apt pin or hold needed. Like any upstream build it ships no Debian snippets, so
+# we provide our own fastcgi snippet below. We pull the FULL Marathon module set
+# (brotli/headers-more/geoip2/ndk/lua) to stay identical to the Marathon nginx
+# foundation, even though KewlChats only actively uses brotli (ndk/lua load inactive).
+- name: Ensure apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Add Marathon repo signing key
+  ansible.builtin.get_url:
+    url: https://apt.host.toys/marathon.gpg
+    dest: /etc/apt/keyrings/marathon.asc
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add Marathon apt repository
+  ansible.builtin.deb822_repository:
+    name: marathon
+    types: [deb]
+    uris: https://apt.host.toys/
+    suites: [noble]
+    components: [main]
+    signed_by: /etc/apt/keyrings/marathon.asc
     state: present
+  register: marathon_repo
+
+- name: Update apt cache after adding Marathon repo
+  ansible.builtin.apt:
     update_cache: true
-    cache_valid_time: 3600
+  when: marathon_repo.changed
+
+- name: Install nginx (mainline) + dynamic modules
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - nginx-module-brotli
+      - nginx-module-headers-more
+      - nginx-module-geoip2
+      - nginx-module-ndk
+      - nginx-module-lua
+    state: present
 
 - name: Generate DH parameters
   ansible.builtin.command:
     cmd: openssl dhparam -out /etc/nginx/dhparams.pem 2048
     creates: /etc/nginx/dhparams.pem
 
-- name: Deploy global SSL/hardening drop-in
+# Own the global nginx.conf (don't layer over stock). Back up the packaged file
+# once so it's recoverable, then deploy ours as the single source of truth.
+- name: Back up the stock nginx.conf (once)
+  ansible.builtin.command:
+    cmd: mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.stock-backup
+    creates: /etc/nginx/nginx.conf.stock-backup
+
+- name: Deploy our global nginx.conf
   ansible.builtin.template:
-    src: 99-kewlchats-ssl.conf.j2
-    dest: /etc/nginx/conf.d/99-kewlchats-ssl.conf
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
     owner: root
     group: root
     mode: "0644"
@@ -27,6 +78,42 @@
     owner: root
     group: root
     mode: "0644"
+  notify: Reload nginx
+
+- name: Deploy brotli config
+  ansible.builtin.copy:
+    src: brotli.conf
+    dest: /etc/nginx/conf.d/brotli.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+# Upstream nginx (apt.host.toys) doesn't create the Debian dir layout — no
+# snippets/, sites-available/ or sites-enabled/ — so make them before we write the
+# fastcgi snippet and the per-site vhosts into them.
+- name: Ensure nginx dir structure exists
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /etc/nginx/snippets
+    - /etc/nginx/sites-available
+    - /etc/nginx/sites-enabled
+
+- name: Deploy fastcgi params + php snippet
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - { src: fastcgi.conf, dest: /etc/nginx/fastcgi.conf }
+    - { src: fastcgi-php.conf, dest: /etc/nginx/snippets/fastcgi-php.conf }
   notify: Reload nginx
 
 - name: Deploy per-site vhosts
@@ -52,10 +139,16 @@
     label: "{{ item.name }}"
   notify: Reload nginx
 
-- name: Disable the default vhost
+# Drop the packaged default site. Upstream nginx (apt.host.toys) ships it as
+# conf.d/default.conf; Debian nginx uses sites-enabled/default — remove both so a
+# fresh install doesn't serve a stray localhost welcome server inside our http{}.
+- name: Disable the packaged default vhost
   ansible.builtin.file:
-    path: /etc/nginx/sites-enabled/default
+    path: "{{ item }}"
     state: absent
+  loop:
+    - /etc/nginx/conf.d/default.conf
+    - /etc/nginx/sites-enabled/default
   notify: Reload nginx
 
 - name: Validate nginx configuration

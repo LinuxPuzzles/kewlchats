@@ -1,0 +1,61 @@
+# Managed by Ansible (kewlchats). Replaces the packaged nginx.conf so our
+# http-level hardening is the SINGLE source of truth — no conf.d-vs-stock
+# duplicate-directive collisions. Modeled on the Marathon node's nginx.conf.
+# nginx + modules come from Marathon's apt.host.toys repo (mirrored nginx.org
+# mainline → HTTP/3 + brotli). modules-enabled/*.conf carries each module's
+# load_module line (ndk before lua), dropped in by the module packages.
+user {{ web_user }};
+worker_processes auto;
+worker_rlimit_nofile 65535;
+pid /run/nginx.pid;
+error_log /var/log/nginx/error.log;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 4096;
+    multi_accept on;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    # ready2.im carries many alias server_names — the default bucket (64) is too
+    # small and nginx would fail to build the server_names hash.
+    server_names_hash_bucket_size 128;
+    server_tokens off;
+
+    # Global default; per-site vhosts may override.
+    client_max_body_size 16m;
+
+    # TLS owned here (vhosts only point at their certs). prefer_server_ciphers off
+    # is the modern Mozilla-intermediate stance and a non-issue for TLS 1.3.
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+    ssl_dhparam /etc/nginx/dhparams.pem;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /var/log/nginx/access.log main;
+
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 5;
+    gzip_min_length 256;
+    gzip_types
+        text/plain text/css text/xml application/json application/javascript
+        application/xml application/rss+xml image/svg+xml font/woff font/woff2;
+
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}

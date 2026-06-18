@@ -68,6 +68,15 @@ secrets_dir: /root/.kewlchats
 php_version: "8.5"
 nodejs_major: "22"
 
+# --- nginx --------------------------------------------------------------------
+# nginx + modules come from Marathon's own signed repo (apt.host.toys): mirrored
+# nginx.org MAINLINE binary (HTTP/3 built in) + brotli/headers-more/geoip2/ndk/lua,
+# self-hosted after GetPageSpeed paywalled their .debs. KewlChats actively uses only
+# nginx + brotli; the rest load inactive (kept for parity with the Marathon nodes).
+# HTTP/3 adds a `listen 443 quic` + Alt-Svc and opens UDP 443; set false for
+# HTTP/2-only without touching templates.
+nginx_http3: true
+
 # --- PHP tuning (4c/8t, 32GB box) --------------------------------------------
 php_memory_limit: "512M"
 php_fpm_pm: dynamic
@@ -95,6 +104,15 @@ redis_maxmemory: "1gb"
 ejabberd_conf_dir: /opt/ejabberd/conf
 ejabberd_certs_dir: "{{ ejabberd_conf_dir }}/certs"
 le_live_base: /etc/letsencrypt/live
+
+# Issue from Let's Encrypt STAGING (untrusted certs, ~unlimited issuance) while
+# iterating on a throwaway box, so repeated rebuilds don't burn the production
+# Duplicate-Certificate limit (5 / exact identifier set / 7 days). Override to
+# true in provided.yml during testing; leave false for the real launch.
+# NOTE: switching staging<->prod on a box that already has certs requires removing
+# the old ones first (`certbot delete --cert-name <name>`) or starting from a
+# clean /etc/letsencrypt — the `creates:` guard skips re-issue while a PEM exists.
+letsencrypt_staging: false
 # Cert names ejabberd needs PEMs for = the per-site primary certs.
 ejabberd_cert_names: "{{ sites | map(attribute='cert_name') | list }}"
 mam_retention_days: 7

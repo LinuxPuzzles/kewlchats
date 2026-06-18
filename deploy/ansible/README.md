@@ -140,11 +140,18 @@ the role is skipped and SSH stays on its public/CIDR rules.
 
 ## Security shape
 
-- ufw default-deny inbound; only `80, 443, 5222/tcp, 5478/udp` and the TURN relay
-  UDP range are public. **SSH is tailnet-only when Tailscale is enabled** (else
-  `22/tcp`, optionally CIDR-restricted). The ejabberd API (5280), MySQL (3306) and
-  Redis (6379) bind to **loopback**; the monit UI (2812) is tailnet-only.
-- TLS 1.2/1.3, HSTS, security headers, dotfile/secret-extension denies in nginx.
+- ufw default-deny inbound; only `80, 443/tcp`, `443/udp` (HTTP/3 QUIC, when
+  `nginx_http3`), `5222/tcp`, `5478/udp` and the TURN relay UDP range are public.
+  **SSH is tailnet-only when Tailscale is enabled** (else `22/tcp`, optionally
+  CIDR-restricted). The ejabberd API (5280), MySQL (3306) and Redis (6379) bind to
+  **loopback**; the monit UI (2812) is tailnet-only.
+- **nginx** comes from **Marathon's own signed repo** (`apt.host.toys`, via Bunny) —
+  a mirrored **nginx.org mainline** binary (HTTP/3 built in) plus brotli/headers-more/
+  geoip2/ndk/lua modules, self-hosted after GetPageSpeed paywalled their `.deb`s. We own
+  `/etc/nginx/nginx.conf` (packaged one backed up to `nginx.conf.stock-backup`) and ship
+  our own fastcgi snippet (upstream nginx has no Debian `snippets/`). KewlChats actively
+  uses nginx + brotli + gzip; the other modules load inactive (kept for parity with the
+  Marathon nodes). TLS 1.2/1.3, HSTS, security headers, dotfile/secret denies in vhosts.
 - PHP hardened (`disable_functions`, `expose_php=Off`, OPcache); fail2ban on SSH +
   nginx auth; SSH key-only.
 - **Per-site isolation:** each site's code/FPM-pool/worker runs as its own Unix

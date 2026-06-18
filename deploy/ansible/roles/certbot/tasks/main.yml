@@ -52,6 +52,10 @@
   ansible.builtin.command:
     # Interleave "-d <domain>" tokens as separate argv elements. Using argv (no
     # shell) means the wildcard "*" is passed literally, never glob-expanded.
+    # `--staging` (when letsencrypt_staging) hits LE's staging CA: untrusted certs
+    # but effectively unlimited issuance, so repeatedly rebuilding the box for
+    # testing doesn't burn the production Duplicate-Certificate limit (5 per exact
+    # identifier set / 7 days). Flip to false for the real launch.
     argv: >-
       {{
         ['/usr/local/bin/certbot', 'certonly', '--non-interactive', '--agree-tos',
@@ -60,6 +64,7 @@
          '--dns-bunny-credentials', secrets_dir ~ '/bunny.ini',
          '--dns-bunny-propagation-seconds', '60',
          '--cert-name', item.name]
+        + (['--staging'] if letsencrypt_staging | bool else [])
         + (item.domains | map('regex_replace', '^', '-d ') | join(' ')).split(' ')
       }}
     creates: "{{ le_live_base }}/{{ item.name }}/fullchain.pem"

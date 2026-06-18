@@ -11,6 +11,13 @@ bunny_api_key: "CHANGE_ME"
 # Email Let's Encrypt uses for expiry notices.
 letsencrypt_email: "you@example.com"
 
+# Set true while iterating on a throwaway box to issue from Let's Encrypt STAGING
+# (untrusted certs, ~unlimited issuance) — avoids burning the production
+# Duplicate-Certificate limit (5 per exact domain set / 7 days) on repeat rebuilds.
+# Leave false (or omit) for the real launch. See group_vars/all/main.yml for the
+# staging<->prod switch caveat.
+letsencrypt_staging: false
+
 # Postmark Server API token. Postmark uses the SAME token as SMTP username AND password.
 postmark_token: "CHANGE_ME"
 
