@@ -21,8 +21,12 @@
                 {{-- Self-hosted Converse.js (no CDN). It logs in with a short-lived X-OAUTH2 token
                      fetched from /chat/token, so the password is never re-entered. --}}
                 <link rel="stylesheet" href="/vendor/converse/converse.min.css">
-                <div class="bg-white/5 border border-white/10 rounded-2xl overflow-hidden min-h-[600px]">
-                    <converse-root class="converse-embedded"></converse-root>
+                {{-- Embedded Converse sets its root to height:100%, which only resolves
+                     against a parent with a DEFINITE height — min-height doesn't count,
+                     so the fully-rendered UI collapses to 0px (blank). Give it a real
+                     height; converse-root then fills it. --}}
+                <div class="bg-white/5 border border-white/10 rounded-2xl overflow-hidden h-[600px]">
+                    <converse-root class="converse-embedded" style="display:block; height:100%;"></converse-root>
                 </div>
                 <script src="/vendor/converse/converse.min.js"></script>
                 <script>
