@@ -6,7 +6,7 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
             {{-- Live-room disclaimer: frame the no-history model as a feature, present-tense. --}}
             <div class="rounded-2xl bg-fuchsia-500/10 border border-fuchsia-400/20 p-5 text-sm">
@@ -21,6 +21,14 @@
                 {{-- Self-hosted Converse.js (no CDN). It logs in with a short-lived X-OAUTH2 token
                      fetched from /chat/token, so the password is never re-entered. --}}
                 <link rel="stylesheet" href="/vendor/converse/converse.min.css">
+                <style>
+                    /* No "share location" button (typing a geo: URI still works). */
+                    converse-location-button { display: none !important; }
+                    /* Embed is narrow: drop the drag-resize gutter so chat (col-8) +
+                       occupants (col-4) sum to 100% instead of overflowing and clipping
+                       the participant list on the right. */
+                    .converse-embedded converse-split-resize { display: none !important; }
+                </style>
                 {{-- Embedded Converse sets its root to height:100%, which only resolves
                      against a parent with a DEFINITE height — min-height doesn't count,
                      so the fully-rendered UI collapses to 0px (blank). Give it a real
