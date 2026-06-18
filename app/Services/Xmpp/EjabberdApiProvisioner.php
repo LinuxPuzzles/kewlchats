@@ -2,12 +2,12 @@
 
 namespace App\Services\Xmpp;
 
-use App\Models\Channel;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 /**
  * Real provisioner backed by ejabberd's ReST API (mod_http_api), exposed at
@@ -106,33 +106,69 @@ class EjabberdApiProvisioner implements XmppProvisioner
 
     public function onlineCount(): int
     {
-        return (int) $this->call('connected_users_number')->throw()->json();
+        // Node-wide total. NOT connected_users_number — that evaluates in the OAuth
+        // token's vhost context, so each front door would only count its own domain
+        // (kewlchats.net is just a vanity JID suffix; the community is one server).
+        // `stats onlineusers` is a node-global stat. If it turns out to still be
+        // vhost-scoped on this build, sum stats_host across the vhost list instead.
+        return (int) $this->call('stats', ['name' => 'onlineusers'])->throw()->json();
     }
 
     public function featuredRooms(): array
     {
         $muc = (string) config('xmpp.muc_domain');
+        $curated = collect(config('xmpp.featured_rooms', []))->keyBy('localpart');
 
-        // Prefer admin-created channels; enrich with live occupant counts.
-        $channels = Channel::orderBy('name')->get();
-        if ($channels->isNotEmpty()) {
-            return $channels->map(fn (Channel $c) => [
-                'jid' => $c->jid(),
-                'name' => $c->name,
-                'description' => (string) $c->description,
-                'occupants' => $this->roomOccupants($c->localpart, $muc),
-            ])->all();
+        // The directory is sourced from the SHARED MUC service + the shared curated
+        // config — both identical across every front door — so kewlchats.net and
+        // ready2.im show the same rooms and counts (one community; the JID suffix is
+        // just identity). Per-site `channels` rows can't unify across separate DBs,
+        // so they're no longer the public directory source; admins still create/destroy
+        // rooms on the shared MUC and they appear here live.
+        //
+        // List = curated showcase (always advertised, even if empty) ∪ live rooms on
+        // the shared MUC, deduped, curated order first.
+        $localparts = $curated->keys()
+            ->merge($this->listSharedRooms($muc) ?? [])
+            ->unique();
+
+        return $localparts->map(function (string $localpart) use ($muc, $curated) {
+            $meta = $curated->get($localpart, []);
+
+            return [
+                'jid' => $localpart.'@'.$muc,
+                'name' => $meta['name'] ?? Str::headline($localpart),
+                'description' => (string) ($meta['description'] ?? ''),
+                'occupants' => $this->roomOccupants($localpart, $muc),
+            ];
+        })->values()->all();
+    }
+
+    /**
+     * Localparts of rooms on the shared MUC service, or null if the query failed
+     * (caller falls back to the curated config list). Tolerates ejabberd returning
+     * either "room@service" strings or [{"room": "..."}] objects across versions.
+     */
+    protected function listSharedRooms(string $muc): ?array
+    {
+        $resp = $this->call('muc_online_rooms', ['service' => $muc]);
+
+        if (! $resp->successful() || ! is_array($items = $resp->json())) {
+            return null;
         }
 
-        // Fall back to the curated config list on a fresh install.
-        return collect(config('xmpp.featured_rooms', []))
-            ->map(fn (array $room) => [
-                'jid' => $room['localpart'].'@'.$muc,
-                'name' => $room['name'],
-                'description' => $room['description'],
-                'occupants' => $this->roomOccupants($room['localpart'], $muc),
-            ])
-            ->all();
+        $localparts = [];
+        foreach ($items as $item) {
+            $jid = is_array($item) ? ($item['room'] ?? null) : $item;
+            if (is_string($jid) && str_contains($jid, '@')) {
+                [$localpart, $service] = explode('@', $jid, 2);
+                if ($service === $muc && $localpart !== '') {
+                    $localparts[] = $localpart;
+                }
+            }
+        }
+
+        return $localparts;
     }
 
     public function issueChatToken(string $username): ?array

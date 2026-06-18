@@ -101,6 +101,12 @@ mysql_ejabberd_user: ejabberd
 # brand); both vhosts route to it internally (no s2s). Create it once, persistent,
 # via the ready2.im admin UI before relying on it.
 xmpp_landing_room: "lounge@conference.ready2.im"
+
+# SHARED MUC host for every front door (NOT per-site conference.<domain>). Identity
+# (the JID suffix / XMPP_DOMAIN) stays per-site — kewlchats.net is a vanity suffix for
+# the OGs — but the room space is one community on ready2.im's conference, so the room
+# directory + occupant counts are identical on both doors.
+xmpp_muc_domain: "conference.ready2.im"
 mysql_innodb_buffer_pool: "2G"
 
 # --- Redis (shared; Laravel prefixes keys per app) ----------------------------
