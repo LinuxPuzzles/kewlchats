@@ -68,6 +68,10 @@
                         // a room full of people," the whole KewlChats model. Shared by all
                         // front-end sites so everyone lands together.
                         auto_join_rooms: [@js(config('xmpp.web_chat.landing_room'))],
+                        // Use the account's localpart as the MUC nick (their username IS
+                        // their identity) so auto-join completes without a nickname prompt
+                        // — otherwise the embedded view just sits blank waiting for input.
+                        muc_nickname_from_jid: true,
                         @endif
                         // Disable XEP-0198 Stream Management. Its cross-reload *resume*
                         // is buggy here: after a successful <resume> Converse keeps a
