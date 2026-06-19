@@ -21,13 +21,13 @@ class UnbanXmppAccount implements ShouldQueue
     /** @var array<int, int> */
     public array $backoff = [10, 30, 60, 120];
 
-    public function __construct(public string $username)
+    public function __construct(public string $username, public string $domain)
     {
     }
 
     public function handle(XmppProvisioner $xmpp): void
     {
-        $xmpp->unban($this->username);
+        $xmpp->unban($this->username, $this->domain);
 
         User::where('xmpp_username', $this->username)
             ->whereNotNull('xmpp_desynced_at')

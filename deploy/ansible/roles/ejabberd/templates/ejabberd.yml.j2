@@ -8,7 +8,8 @@
 ###   - MySQL backend (new schema), shared by all vhosts
 ###   - MAM ON, full retention (archive kept; no trim timer)
 ###   - HTTP File Upload (XEP-0363): mod_http_upload + quota (25 MiB/file, 30-day expiry)
-###   - s2s: OUTBOUND-ONLY, allowlisted to push gateways (XEP-0357 push); no inbound 5269
+###   - s2s: allowlisted to push gateways only (XEP-0357 push), both directions; 5269 gated by s2s_access
+###   - MUC: ONE shared service ({{ xmpp_muc_domain }}) via host_config, not per-vhost conference.*
 ###   - Let's Encrypt certs (shared with nginx; wildcards cover conference/pubsub)
 ###   - TURN advertises the server's public IPv4
 ###
@@ -35,13 +36,15 @@ certfiles:
 acme:
   auto: false
 
-## --- s2s: OUTBOUND-ONLY, allowlisted to push gateways (mobile push needs it) ---
-## XEP-0357 push is delivered by us connecting out to the apps' push app-servers
-## (e.g. *.prod.push.monal-im.org) over s2s. There is NO inbound 5269 listener, and s2s_access
-## permits s2s ONLY to the push_servers ACL below — so general federation stays off.
-## (Harden later: s2s_use_starttls: required_trusted + ca_file to verify their certs.)
+## --- s2s: allowlisted to push gateways ONLY (mobile push needs it; NOT federation) ---
+## XEP-0357 push is delivered over s2s to the apps' push app-servers
+## (Monal: *.prod.push.monal-im.org). BOTH directions are enabled — the appserver answers
+## via a reverse/dialback connection, so a restricted INBOUND 5269 listener is needed too.
+## s2s_access (s2s_push) permits s2s ONLY to/from the push_servers ACL, so every other
+## server is rejected at the stream layer — general federation stays off.
 s2s_use_starttls: required
 s2s_access: s2s_push
+ca_file: /etc/ssl/certs/ca-certificates.crt   # verify push-gateway certs on s2s
 
 ## OAuth: Laravel mints short-lived X-OAUTH2 tokens for web chat and authenticates
 ## the ReST API with a bearer token.
@@ -72,6 +75,16 @@ listen:
     access: c2s
     starttls_required: true
   -
+    ## Direct TLS c2s (XEP-0368) — implicit TLS on connect, no STARTTLS. Monal prefers
+    ## this; advertise it via the _xmpps-client._tcp SRV record (port 5223).
+    port: 5223
+    ip: "0.0.0.0"
+    module: ejabberd_c2s
+    tls: true
+    max_stanza_size: 262144
+    shaper: c2s_shaper
+    access: c2s
+  -
     ## Plain HTTP on loopback ONLY — Laravel ReST calls + the nginx-proxied
     ## WebSocket/BOSH land here. Never exposed publicly (nginx terminates TLS).
     port: 5280
@@ -92,9 +105,16 @@ listen:
     turn_ipv4_address: "{{ turn_public_ipv4_effective }}"
     turn_min_port: {{ turn_min_port }}
     turn_max_port: {{ turn_max_port }}
+  -
+    ## Inbound s2s — restricted to the push gateways by s2s_access (s2s_push). The port
+    ## is open, but ejabberd rejects every non-allowlisted remote at the stream layer,
+    ## so this is push delivery, NOT open federation.
+    port: 5269
+    ip: "0.0.0.0"
+    module: ejabberd_s2s_in
 
-## --- No inbound s2s: 5269 deliberately not listened on. Outbound s2s is allowed
-## only to the push gateways (see s2s_access / push_servers ACL) for XEP-0357. ---
+## --- s2s is allowlisted to the push gateways only (see s2s_access / push_servers ACL)
+## for XEP-0357 mobile push — both directions, no general federation. ---
 
 acl:
   local:
@@ -222,17 +242,9 @@ modules:
     db_type: sql
     default: always
     user_mucsub_from_muc_archive: true
-  mod_muc:
-    access:
-      - allow
-    access_admin:
-      - allow: admin
-    access_create: muc_create
-    access_persistent: muc_create
-    history_size: 20        # recent scrollback for joiners
-    default_room_options:
-      mam: true             # archive MUC messages (trimmed with everything else)
-  mod_muc_admin: {}
+  ## mod_muc / mod_muc_admin are NOT loaded globally — a single shared MUC service
+  ## runs on one vhost only (see host_config at the bottom), so conference.<vhost>
+  ## is never auto-created per site. Other vhosts discover it via mod_disco.
   mod_offline:              # short-lived spool: delivered once, then gone
     access_max_user_messages: max_user_offline_messages
   mod_ping: {}
@@ -254,6 +266,7 @@ modules:
   mod_roster:
     versioning: true
   mod_shared_roster: {}
+  mod_s2s_dialback: {}      # allow dialback auth on the (allowlisted) push s2s connections
   mod_stream_mgmt:
     resend_on_timeout: if_offline
   mod_stun_disco: {}        # advertises the built-in STUN/TURN (XEP-0215)
@@ -261,3 +274,34 @@ modules:
   mod_vcard_xupdate: {}
   mod_version:
     show_os: false
+
+## --- Per-vhost overrides ---------------------------------------------------------
+## Shared MUC: ejabberd's mod_muc is per-vhost and would otherwise spin up
+## conference.<vhost> for EVERY site (so a kewlchats.net user's client finds
+## conference.kewlchats.net). We want ONE community room host ({{ xmpp_muc_domain }}),
+## so mod_muc runs only on its owning vhost ({{ muc_vhost }}); every other vhost
+## advertises it through mod_disco extra_domains so their clients still discover it.
+## Cross-vhost joins route internally (no s2s).
+host_config:
+  {{ muc_vhost }}:
+    modules:
+      mod_muc:
+        hosts:
+          - {{ xmpp_muc_domain }}
+        access:
+          - allow
+        access_admin:
+          - allow: admin
+        access_create: muc_create
+        access_persistent: muc_create
+        history_size: 20            # recent scrollback for joiners
+        default_room_options:
+          mam: true                 # archive MUC messages (kept — no trim)
+      mod_muc_admin: {}
+{% for s in sites if s.domain != muc_vhost %}
+  {{ s.domain }}:
+    modules:
+      mod_disco:
+        extra_domains:
+          - {{ xmpp_muc_domain }}   # surface the shared MUC to this vhost's clients
+{% endfor %}

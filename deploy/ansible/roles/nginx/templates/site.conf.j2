@@ -37,7 +37,8 @@ server {
 {% endif %}
     server_name {{ site.domain }};
 
-    root {{ app_root }}/{{ site.name }}/public;
+    # All front doors share the ONE app checkout; the app picks brand/theme from Host.
+    root {{ app_root }}/{{ app_name }}/public;
     index index.php;
 
     ssl_certificate     {{ live }}/fullchain.pem;
@@ -100,7 +101,7 @@ server {
 
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/{{ site.name }}.sock;
+        fastcgi_pass unix:/run/php/{{ app_name }}.sock;
         fastcgi_read_timeout 300;
     }
 

@@ -16,19 +16,19 @@ use Illuminate\Support\Facades\Log;
  */
 class MockXmppProvisioner implements XmppProvisioner
 {
-    public function register(string $username, string $password): void
+    public function register(string $username, string $password, string $domain): void
     {
-        Log::info('[xmpp:mock] register', ['username' => $username]);
+        Log::info('[xmpp:mock] register', ['jid' => "{$username}@{$domain}"]);
     }
 
-    public function unregister(string $username): void
+    public function unregister(string $username, string $domain): void
     {
-        Log::info('[xmpp:mock] unregister', ['username' => $username]);
+        Log::info('[xmpp:mock] unregister', ['jid' => "{$username}@{$domain}"]);
     }
 
-    public function changePassword(string $username, string $newPassword): void
+    public function changePassword(string $username, string $newPassword, string $domain): void
     {
-        Log::info('[xmpp:mock] change_password', ['username' => $username]);
+        Log::info('[xmpp:mock] change_password', ['jid' => "{$username}@{$domain}"]);
     }
 
     public function accountExists(string $username): bool
@@ -36,7 +36,7 @@ class MockXmppProvisioner implements XmppProvisioner
         return User::where('xmpp_username', $username)->exists();
     }
 
-    public function lastActivity(string $username): ?CarbonInterface
+    public function lastActivity(string $username, string $domain): ?CarbonInterface
     {
         // Pretend the user was last seen a little while ago.
         return Carbon::now()->subMinutes(7);
@@ -48,12 +48,12 @@ class MockXmppProvisioner implements XmppProvisioner
         return 42;
     }
 
-    public function issueChatToken(string $username): ?array
+    public function issueChatToken(string $username, string $domain): ?array
     {
         // No real server to mint against in Phase 1. Hand back a throwaway token so
         // the web-chat plumbing (endpoint -> Converse.js credentials) is exercisable
         // end-to-end; it authenticates against nothing until ejabberd exists.
-        Log::info('[xmpp:mock] issue_chat_token', ['username' => $username]);
+        Log::info('[xmpp:mock] issue_chat_token', ['jid' => "{$username}@{$domain}"]);
 
         return [
             'token' => 'mock-'.bin2hex(random_bytes(16)),
@@ -61,19 +61,19 @@ class MockXmppProvisioner implements XmppProvisioner
         ];
     }
 
-    public function ban(string $username, string $reason): void
+    public function ban(string $username, string $reason, string $domain): void
     {
-        Log::info('[xmpp:mock] ban_account', ['username' => $username, 'reason' => $reason]);
+        Log::info('[xmpp:mock] ban_account', ['jid' => "{$username}@{$domain}", 'reason' => $reason]);
     }
 
-    public function unban(string $username): void
+    public function unban(string $username, string $domain): void
     {
-        Log::info('[xmpp:mock] unban_account', ['username' => $username]);
+        Log::info('[xmpp:mock] unban_account', ['jid' => "{$username}@{$domain}"]);
     }
 
-    public function kick(string $username): void
+    public function kick(string $username, string $domain): void
     {
-        Log::info('[xmpp:mock] kick_user', ['username' => $username]);
+        Log::info('[xmpp:mock] kick_user', ['jid' => "{$username}@{$domain}"]);
     }
 
     public function createRoom(string $localpart, string $name, string $description): void

@@ -5,9 +5,6 @@
 
 - name: Restart kewlchats workers
   ansible.builtin.systemd_service:
-    name: "{{ item.name }}-worker.service"
+    name: "{{ app_name }}-worker.service"
     state: restarted
     daemon_reload: true
-  loop: "{{ sites }}"
-  loop_control:
-    label: "{{ item.name }}"

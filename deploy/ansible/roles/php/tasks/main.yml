@@ -52,25 +52,21 @@
     - cli
   notify: Restart php-fpm
 
-# One FPM pool per site, each running as that site's user. The packaged default
-# pool (www-data) is removed so no stray pool/socket lingers.
-- name: Remove the default FPM pool (replaced by per-site pools)
+# One FPM pool for the app, running as the `app_name` user. The package's default
+# www-data pool is removed so only our pool/socket exists.
+- name: Remove the default FPM pool (replaced by the app pool)
   ansible.builtin.file:
     path: "/etc/php/{{ php_version }}/fpm/pool.d/www.conf"
     state: absent
   notify: Restart php-fpm
 
-- name: Deploy per-site FPM pools
+- name: Deploy the application FPM pool
   ansible.builtin.template:
     src: pool.conf.j2
-    dest: "/etc/php/{{ php_version }}/fpm/pool.d/{{ site.name }}.conf"
+    dest: "/etc/php/{{ php_version }}/fpm/pool.d/{{ app_name }}.conf"
     owner: root
     group: root
     mode: "0644"
-  loop: "{{ sites }}"
-  loop_control:
-    loop_var: site
-    label: "{{ site.name }}"
   notify: Restart php-fpm
 
 - name: Enable and start php-fpm

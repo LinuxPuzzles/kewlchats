@@ -21,13 +21,13 @@ class UnregisterXmppAccount implements ShouldQueue
     /** @var array<int, int> */
     public array $backoff = [10, 30, 60, 120];
 
-    public function __construct(public string $username)
+    public function __construct(public string $username, public string $domain)
     {
     }
 
     public function handle(XmppProvisioner $xmpp): void
     {
-        $xmpp->unregister($this->username);
+        $xmpp->unregister($this->username, $this->domain);
     }
 
     public function failed(Throwable $e): void

@@ -30,6 +30,18 @@ return [
     'muc_domain' => env('XMPP_MUC_DOMAIN', 'conference.kewlchats.net'),
 
     /*
+    | Every front-door domain that shares ONE localpart namespace (the community
+    | spans multiple vhosts on the same ejabberd node). Username uniqueness is checked
+    | across ALL of these, so `andy` can't be claimed by different people as
+    | andy@kewlchats.net AND andy@ready2.im. Comma-separated; defaults to just this
+    | site's own domain (single-site setups are unaffected).
+    */
+    'community_domains' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('XMPP_COMMUNITY_DOMAINS', (string) env('XMPP_DOMAIN', 'kewlchats.net')))
+    ))),
+
+    /*
     |--------------------------------------------------------------------------
     | Featured rooms (curated)
     |--------------------------------------------------------------------------

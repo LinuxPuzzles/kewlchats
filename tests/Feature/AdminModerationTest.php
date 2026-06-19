@@ -129,7 +129,7 @@ class AdminModerationTest extends TestCase
             ->withSession(['auth.password_confirmed_at' => time()])
             ->post(route('admin.users.kick', $target))->assertRedirect();
 
-        $spy->shouldHaveReceived('kick')->with('noisy')->once();
+        $spy->shouldHaveReceived('kick')->with('noisy', config('xmpp.domain'))->once();
     }
 
     public function test_admin_can_send_a_password_reset(): void

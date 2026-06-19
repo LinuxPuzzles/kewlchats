@@ -6,11 +6,11 @@ use App\Models\User;
 use App\Services\Xmpp\EjabberdApiProvisioner;
 use App\Services\Xmpp\MockXmppProvisioner;
 use App\Services\Xmpp\XmppProvisioner;
+use App\Support\SiteContext;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -33,31 +33,30 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Per-site theming: prepend the active theme's view dir so it overrides the
-        // shared base (resources/views), with base as the fallback. Selected by
-        // SITE_THEME in each site's .env; unset = pure base. No controller/call-site
-        // changes — view('landing'), <x-app-layout>, <x-brand> all resolve theme-first.
-        if (($theme = config('site.theme')) && is_dir($dir = resource_path("views/themes/{$theme}"))) {
-            View::getFinder()->prependLocation($dir);
-        }
+        // (Theme/brand for a web request is set per-Host by the ResolveSite middleware.)
 
         // Admin area access. Used as the `can:admin` route middleware and `@can('admin')`.
         Gate::define('admin', fn (User $user) => $user->isAdmin());
 
-        // On-brand copy for the two emails we send. The brand name comes from
-        // config('app.name') (per-site APP_NAME), so mail is branded for whichever
-        // front door the user signed up through. Rendered via the branded markdown
+        // On-brand copy for the two emails we send. A queue worker has no Host header,
+        // so activate the RECIPIENT's door (their own domain) before composing — the
+        // brand, From address and mail CSS theme then match the user's home front door,
+        // not whichever door triggered the send. Rendered via the brand-aware markdown
         // mail components (resources/views/vendor/mail/*).
-        $brand = (string) config('app.name');
+        VerifyEmail::toMailUsing(function (object $notifiable, string $url) {
+            $brand = SiteContext::apply($notifiable->domain ?? (string) config('xmpp.domain'))['brand'];
 
-        VerifyEmail::toMailUsing(fn (object $notifiable, string $url) => (new MailMessage)
-            ->subject("Verify your {$brand} email")
-            ->greeting('Almost there!')
-            ->line('Verify your email to activate your chat account.')
-            ->action('Verify email', $url)
-            ->line("If you didn't sign up for {$brand}, you can safely ignore this email."));
+            return (new MailMessage)
+                ->subject("Verify your {$brand} email")
+                ->greeting('Almost there!')
+                ->line('Verify your email to activate your chat account.')
+                ->action('Verify email', $url)
+                ->line("If you didn't sign up for {$brand}, you can safely ignore this email.");
+        });
 
-        ResetPassword::toMailUsing(function (object $notifiable, string $token) use ($brand) {
+        ResetPassword::toMailUsing(function (object $notifiable, string $token) {
+            $brand = SiteContext::apply($notifiable->domain ?? (string) config('xmpp.domain'))['brand'];
+
             $url = route('password.reset', [
                 'token' => $token,
                 'email' => $notifiable->getEmailForPasswordReset(),

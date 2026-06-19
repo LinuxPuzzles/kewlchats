@@ -18,27 +18,27 @@ interface XmppProvisioner
      * password. Implementations MUST be idempotent: an existing account with a
      * matching localpart should not be treated as a hard failure.
      */
-    public function register(string $username, string $password): void;
+    public function register(string $username, string $password, string $domain): void;
 
     /**
      * Permanently remove an account.
      */
-    public function unregister(string $username): void;
+    public function unregister(string $username, string $domain): void;
 
     /**
      * Change an existing account's password.
      */
-    public function changePassword(string $username, string $newPassword): void;
+    public function changePassword(string $username, string $newPassword, string $domain): void;
 
     /**
-     * Whether an account already exists for the given localpart.
+     * Whether an account already exists for the given localpart (community-wide).
      */
     public function accountExists(string $username): bool;
 
     /**
      * The account's last activity timestamp, or null if never seen / unknown.
      */
-    public function lastActivity(string $username): ?CarbonInterface;
+    public function lastActivity(string $username, string $domain): ?CarbonInterface;
 
     /**
      * Number of currently connected users across the server.
@@ -64,23 +64,23 @@ interface XmppProvisioner
      *
      * @return array{token: string, expires_at: CarbonInterface}|null
      */
-    public function issueChatToken(string $username): ?array;
+    public function issueChatToken(string $username, string $domain): ?array;
 
     /**
      * Ban an account: kick its live sessions and block login, while keeping the
      * account (reversible). KewlChats mirrors this with a website-side ban.
      */
-    public function ban(string $username, string $reason): void;
+    public function ban(string $username, string $reason, string $domain): void;
 
     /**
      * Lift a ban.
      */
-    public function unban(string $username): void;
+    public function unban(string $username, string $domain): void;
 
     /**
      * Force-disconnect a user's live sessions, without banning (a soft moderation nudge).
      */
-    public function kick(string $username): void;
+    public function kick(string $username, string $domain): void;
 
     /**
      * Create a persistent, public group-chat room (channel) that survives being empty.

@@ -53,7 +53,7 @@ class ProvisionXmppAccount implements ShouldQueue
             return;
         }
 
-        $xmpp->register($user->xmpp_username, $secret);
+        $xmpp->register($user->xmpp_username, $secret, $user->domain);
 
         $user->forceFill([
             'xmpp_status' => 'active',

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Rules\XmppUsername;
+use App\Support\SiteContext;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -46,6 +47,8 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'xmpp_username' => $request->username,
+            // The door they signed up at IS their home domain / JID suffix (permanent).
+            'domain' => SiteContext::current()['domain'],
             'password' => Hash::make($request->password),
         ]);
 

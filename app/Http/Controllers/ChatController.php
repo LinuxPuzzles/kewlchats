@@ -47,7 +47,7 @@ class ChatController extends Controller
             return response()->json(['message' => 'Your chat account is not ready yet.'], 409);
         }
 
-        $token = $this->xmpp->issueChatToken($user->xmpp_username);
+        $token = $this->xmpp->issueChatToken($user->xmpp_username, $user->domain);
 
         if ($token === null) {
             return response()->json(['message' => 'Could not start a chat session.'], 502);

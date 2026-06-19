@@ -103,10 +103,13 @@ features, so we retain almost nothing. The vibe is intentionally IRC-like — ep
   **The one exception is mandatory:** XEP-0357 mobile push is *delivered* by ejabberd connecting
   out to the apps' push app-servers (Monal: `eu/us.prod.push.monal-im.org`) — that's s2s. iOS (Monal) can't hold a
   background socket, so **no push = no notifications**, and you can't self-host the gateway (it
-  needs the app vendor's APNs cert). So: **no inbound 5269 listener**, but **outbound s2s is enabled
-  and `s2s_access`-gated to a `push_servers` allowlist** (`s2s_push_domains` in group_vars) — push
-  works, everything else stays walled. Symptom when this is off: Monal's tester is all-green
-  (registration) but its debug Ping fails `STARTTLS is disabled / remote-server-timeout` (delivery).
+  needs the app vendor's APNs cert). So **s2s is enabled in BOTH directions but `s2s_access`-gated to a
+  `push_servers` allowlist** (`s2s_push_domains` in group_vars) — Monal's appserver answers via a
+  reverse/dialback connection, so the inbound `5269` listener (firewalled open, `mod_s2s_dialback` on)
+  is required too; every non-allowlisted server is rejected at the stream layer, so general federation
+  stays off. Symptom when this is wrong: Monal's tester is all-green (registration) but its debug Ping
+  fails `STARTTLS is disabled / remote-server-timeout` (delivery). Conversations (Android) keeps its
+  own persistent connection and needs none of this.
 - **Message archive (MAM ON, full retention — no trim).** *Twice revised:* original stance was
   "MAM off / zero archive"; then "MAM on, trimmed to 7 days"; **now MAM on with no retention
   limit** (the daily `delete_old_mam_messages` timer is removed). The reasoning behind the trim
@@ -290,17 +293,33 @@ ReST API (never `ejabberdctl`).
   (meets the secure-context requirement). The ejabberd prod config is generated from
   `roles/ejabberd/templates/ejabberd.yml.j2` (no IPv6, loopback API, SQL backend, MAM full-retention, TURN).
   See `deploy/ansible/README.md`. Still TODO: actually run it against the box and finalize DNS.
-- **Multi-site (same codebase, multiple front doors).** The box hosts a `sites` list — currently
-  `kewlchats.net` and `ready2.im` (the latter with `www`/`ready2im.{com,net,org}` aliases that
-  301 to it). Each site is a separate Laravel deploy (own checkout/DB/.env/worker/vhost) **and**
-  an ejabberd **virtual host** on the same node. Multiple local vhosts route to each other
-  *internally* — cross-domain chat (`a@kewlchats.net` ↔ `b@ready2.im`) and shared MUC work with
-  **`s2s` still off**; `s2s` is only for reaching other servers. They are deliberately not walled
-  off from each other. ready2.im will eventually fork into its own codebase; until then it's the
-  identical code with a different layout.
-- **Per-site theming (`SITE_THEME`).** `AppServiceProvider::boot()` prepends
-  `resources/views/themes/{SITE_THEME}` to the view finder, so any view under it overrides the
-  base (and falls back to base when absent). **Base = the default/canonical look (KewlChats);
+- **One install, multiple front doors (NOT a fork — one community forever).** The box hosts a
+  `sites` list — currently `kewlchats.net` and `ready2.im` (the latter with
+  `www`/`ready2im.{com,net,org}` aliases that 301 to it). It's **ONE Laravel install / ONE DB**
+  that both domains point at via nginx — not two deploys. The browsed Host picks the brand/theme
+  skin per request (`App\Support\SiteContext` + the `ResolveSite` middleware, registry in
+  `config/sites.php`), while a user's home domain / JID suffix lives on their **`users.domain`**
+  row (set at the door they signed up at, permanent). **Email = login identity** (one account);
+  logging in at either door shows your real JID (e.g. `andy@kewlchats.net`) no matter which skin
+  you're viewing — *theme = the door, data = the account*. One DB makes the localpart globally
+  unique (`xmpp_username` unique index), so there's no duplicate `andy` and the signup race is
+  structurally impossible. ejabberd is still a **virtual host per domain** on the node; local
+  vhosts route to each other *internally* — cross-domain chat (`a@kewlchats.net` ↔ `b@ready2.im`)
+  and shared MUC work with **`s2s` still off** (s2s is allowlisted only to the push gateways).
+  - **One shared MUC, not per-vhost.** ejabberd's `mod_muc` is per-vhost and by default would
+    auto-create `conference.<vhost>` for *every* site (so a `@kewlchats.net` client discovers
+    `conference.kewlchats.net`). We want a single community room host (`xmpp_muc_domain` =
+    `conference.ready2.im`), so in `ejabberd.yml.j2` `mod_muc`/`mod_muc_admin` are loaded via
+    `host_config` on **`muc_vhost` (ready2.im) only**; every other vhost gets
+    `mod_disco: extra_domains: [conference.ready2.im]` so its clients still discover the shared
+    service. Cross-vhost joins route internally (no s2s). Symptom if this regresses: a native client
+    (e.g. Monal) lists `conference.<its-own-domain>` instead of `conference.ready2.im`.
+- **Per-door theming (Host-resolved).** The `ResolveSite` middleware reads the Host, looks the door
+  up in `config/sites.php`, and (via `SiteContext::applyWithTheme`) prepends
+  `resources/views/themes/{theme}` to the view finder **and** sets `app.name`/mail config for the
+  request, so any view under the theme dir overrides the base (and falls back to base when absent).
+  (Hosts not in the registry — dev's `kewlchats.corp`, test hosts — fall back to the `.env` values.)
+  **Base = the default/canonical look (KewlChats);
   `themes/` = divergent skins.** KewlChats deliberately has *no* theme files (empty
   `themes/kewlchats/`, kept only as a hook) — it renders entirely from base, so there is nothing
   to "move." **ready2.im** is fully themed (early-2000s IM "windows" look): landing, all six auth
@@ -315,12 +334,11 @@ ReST API (never `ejabberdctl`).
   `mail::` namespace (hint paths), not the global view-finder prepend, so theme overrides under
   `themes/` do **not** reach mail. Instead: the shared `vendor/mail/html/header.blade.php` +
   `footer.blade.php` are **brand-aware** (`config('app.name')`), and the accent comes from a
-  per-site **mail CSS theme** selected by `MAIL_THEME` (`config/mail.php` →
-  `markdown.theme = env('MAIL_THEME','default')`; CSS at
-  `resources/views/vendor/mail/html/themes/<name>.css`). Wired in Ansible per site:
-  `sites[].mail_theme` (`kewlchats`→`default`, `ready2im`→`ready2im`) → `env.j2`
-  `MAIL_THEME={{ site.mail_theme | default('default') }}`. **If ready2.im forks, carry this
-  over — it won't come for free with the Blade theme.**
+  per-domain **mail CSS theme** (`config('mail.markdown.theme')`; CSS at
+  `resources/views/vendor/mail/html/themes/<name>.css`). Since a queue worker has no Host, the
+  `VerifyEmail`/`ResetPassword` `toMailUsing` closures in `AppServiceProvider` call
+  `SiteContext::apply($notifiable->domain)` — activating the **recipient's** door (brand, From,
+  mail theme) from their row, so mail is correctly branded no matter which door triggered the send.
 - **Voice/video:** the Ansible `ejabberd.yml.j2` already includes the `ejabberd_stun` listener
   (UDP 5478) + `mod_stun_disco` with `use_turn: true`, the public `turn_ipv4_address`, and the
   relay port range (firewalled open). No coturn. Plus real MUC directory / presence polish.

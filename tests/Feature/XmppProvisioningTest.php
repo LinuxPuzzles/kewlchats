@@ -46,7 +46,7 @@ class XmppProvisioningTest extends TestCase
     public function test_verifying_email_provisions_account_and_wipes_the_stash(): void
     {
         $mock = Mockery::mock(XmppProvisioner::class);
-        $mock->shouldReceive('register')->once()->with('bob', 'password');
+        $mock->shouldReceive('register')->once()->with('bob', 'password', config('xmpp.domain'));
         $this->app->instance(XmppProvisioner::class, $mock);
 
         $user = User::factory()->unverified()->create([

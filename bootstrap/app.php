@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Resolve the front door (brand/theme/mail/XMPP) from the Host, first thing.
+        $middleware->web(prepend: [
+            \App\Http\Middleware\ResolveSite::class,
+        ]);
         // Banned users get force-logged-out on their next authenticated request.
         $middleware->web(append: [
             \App\Http\Middleware\EnsureNotBanned::class,
