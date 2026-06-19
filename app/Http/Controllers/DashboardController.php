@@ -25,7 +25,7 @@ class DashboardController extends Controller
         // so a slow/down ejabberd never breaks the dashboard. (Write path still retries.)
         $onlineCount = rescue(fn () => Cache::remember('xmpp.online_count', now()->addMinute(), fn () => $xmpp->onlineCount()), 0, false);
         $lastActivity = $user->xmppIsActive() && $user->xmpp_username
-            ? rescue(fn () => $xmpp->lastActivity($user->xmpp_username), null, false)
+            ? rescue(fn () => $xmpp->lastActivity($user->xmpp_username, $user->domain), null, false)
             : null;
 
         return view('dashboard', [

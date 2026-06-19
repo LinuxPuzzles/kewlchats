@@ -53,7 +53,7 @@ class UserController extends Controller
         ])->save();
 
         if ($user->xmpp_username) {
-            BanXmppAccount::dispatch($user->xmpp_username, $reason);
+            BanXmppAccount::dispatch($user->xmpp_username, $reason, $user->domain);
         }
 
         return back()->with('status', "Banned {$user->email}.");
@@ -68,7 +68,7 @@ class UserController extends Controller
         ])->save();
 
         if ($user->xmpp_username) {
-            UnbanXmppAccount::dispatch($user->xmpp_username);
+            UnbanXmppAccount::dispatch($user->xmpp_username, $user->domain);
         }
 
         return back()->with('status', "Unbanned {$user->email}.");
@@ -85,7 +85,7 @@ class UserController extends Controller
         }
 
         try {
-            $this->xmpp->kick($user->xmpp_username);
+            $this->xmpp->kick($user->xmpp_username, $user->domain);
         } catch (\Throwable $e) {
             return back()->withErrors(['kick' => 'Could not reach the chat server.']);
         }

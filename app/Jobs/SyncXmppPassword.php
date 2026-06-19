@@ -36,7 +36,7 @@ class SyncXmppPassword implements ShouldQueue
             return;
         }
 
-        $xmpp->changePassword($user->xmpp_username, $this->newPassword);
+        $xmpp->changePassword($user->xmpp_username, $this->newPassword, $user->domain);
 
         // Recovered — a prior reset that drifted is now back in sync.
         if ($user->xmpp_desynced_at) {

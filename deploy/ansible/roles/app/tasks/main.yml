@@ -1,10 +1,152 @@
 ---
-# Deploy the same codebase once per site, each AS its own unprivileged user
-# (created in the common role) for tenant isolation. The git deploy key is
-# installed per-user inside deploy_site.yml (the user that clones owns the key).
-- name: Deploy each site
-  ansible.builtin.include_tasks: deploy_site.yml
-  loop: "{{ sites }}"
-  loop_control:
-    loop_var: site
-    label: "{{ site.name }} ({{ site.domain }})"
+# ONE install. The single checkout is owned by the `app_name` user (created in the
+# common role) so git sees a repo it owns (no "dubious ownership"). HOME is set
+# explicitly on every become task because `become_user` does NOT reset it.
+- name: App path facts
+  ansible.builtin.set_fact:
+    app_dir: "{{ app_root }}/{{ app_name }}"
+    app_home: "{{ site_home_base }}/{{ app_name }}"
+    app_key: "{{ site_home_base }}/{{ app_name }}/.ssh/kewlchats_deploy"
+
+- name: Ensure ~/.ssh exists
+  ansible.builtin.file:
+    path: "{{ app_home }}/.ssh"
+    state: directory
+    owner: "{{ app_name }}"
+    group: "{{ app_name }}"
+    mode: "0700"
+
+- name: Install git deploy key (owned by the app user)
+  ansible.builtin.copy:
+    src: deploy_key
+    dest: "{{ app_key }}"
+    owner: "{{ app_name }}"
+    group: "{{ app_name }}"
+    mode: "0600"
+
+- name: Ensure app directory exists (owned by the app user)
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ app_name }}"
+    group: "{{ app_name }}"
+    mode: "0755"
+
+- name: Clone / update the application
+  ansible.builtin.git:
+    repo: "{{ git_repo_url }}"
+    dest: "{{ app_dir }}"
+    version: "{{ git_branch }}"
+    key_file: "{{ app_key }}"
+    accept_hostkey: true
+    force: true
+  become: true
+  become_user: "{{ app_name }}"
+  environment:
+    HOME: "{{ app_home }}"
+  register: app_checkout
+
+# Detect whether build artifacts exist, so an interrupted prior run (cloned but not
+# built) still gets rebuilt even though git reports "no change".
+- name: Check for composer + built assets
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ app_dir }}/vendor/autoload.php"
+    - "{{ app_dir }}/public/build"
+  register: build_artifacts
+
+- name: Set rebuild flags
+  ansible.builtin.set_fact:
+    code_changed: "{{ app_checkout.changed }}"
+    vendor_present: "{{ build_artifacts.results[0].stat.exists }}"
+    assets_present: "{{ build_artifacts.results[1].stat.exists }}"
+
+- name: Install PHP dependencies (composer)
+  ansible.builtin.command:
+    cmd: composer install --no-dev --optimize-autoloader --no-interaction
+    chdir: "{{ app_dir }}"
+  become: true
+  become_user: "{{ app_name }}"
+  environment:
+    HOME: "{{ app_home }}"
+    COMPOSER_HOME: "{{ app_home }}/.composer"
+  when: code_changed or not vendor_present
+  register: composer_install
+  changed_when: "'Nothing to install' not in composer_install.stdout"
+
+- name: Install Node dependencies (npm ci)
+  ansible.builtin.command:
+    cmd: npm ci
+    chdir: "{{ app_dir }}"
+  become: true
+  become_user: "{{ app_name }}"
+  environment:
+    HOME: "{{ app_home }}"
+  when: code_changed or not assets_present
+  changed_when: true
+
+- name: Build front-end assets (Converse publish + Vite)
+  ansible.builtin.command:
+    cmd: npm run build
+    chdir: "{{ app_dir }}"
+  become: true
+  become_user: "{{ app_name }}"
+  environment:
+    HOME: "{{ app_home }}"
+  when: code_changed or not assets_present
+  changed_when: true
+
+- name: Render .env
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: "{{ app_name }}"
+    group: "{{ app_name }}"
+    mode: "0640"
+  no_log: true
+  register: env_render
+  notify: Restart kewlchats workers
+
+- name: Ensure writable runtime directories
+  ansible.builtin.file:
+    path: "{{ app_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ app_name }}"
+    group: "{{ app_name }}"
+    mode: "0775"
+    recurse: true
+  loop:
+    - storage
+    - bootstrap/cache
+
+- name: Run database migrations
+  ansible.builtin.command:
+    cmd: "php{{ php_version }} artisan migrate --force"
+    chdir: "{{ app_dir }}"
+  become: true
+  become_user: "{{ app_name }}"
+  environment:
+    HOME: "{{ app_home }}"
+  when: code_changed
+  register: migrate_out
+  changed_when: "'Nothing to migrate' not in migrate_out.stdout"
+
+# config:cache bakes .env into a compiled file; re-cache whenever code OR the rendered
+# .env changed. (ResolveSite still overrides brand/theme/domain per request at runtime.)
+- name: Cache config, routes, views, events
+  ansible.builtin.command:
+    cmd: "php{{ php_version }} artisan {{ item }}"
+    chdir: "{{ app_dir }}"
+  become: true
+  become_user: "{{ app_name }}"
+  environment:
+    HOME: "{{ app_home }}"
+  loop:
+    - config:cache
+    - route:cache
+    - view:cache
+    - event:cache
+  when: code_changed or env_render.changed
+  changed_when: true
+  notify: Restart kewlchats workers

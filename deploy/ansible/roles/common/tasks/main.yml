@@ -30,31 +30,24 @@
     group: root
     mode: "0644"
 
-# --- Per-site service accounts (multi-tenant isolation) -----------------------
-# Each site's code, PHP-FPM pool and queue worker run as its own unprivileged
-# user (named after the site) so one site's PHP process can't touch another's
-# files. Created here, early, because the php and app roles depend on them.
+# --- Service account ----------------------------------------------------------
+# The app's code, PHP-FPM pool and queue worker run as one unprivileged user
+# (`app_name`). Created here, early, because the php and app roles depend on it.
 # A real shell (/bin/bash) is required so `become_user` can run command tasks.
-- name: Create per-site groups
+- name: Create the app group
   ansible.builtin.group:
-    name: "{{ item.name }}"
+    name: "{{ app_name }}"
     state: present
-  loop: "{{ sites }}"
-  loop_control:
-    label: "{{ item.name }}"
 
-- name: Create per-site service users
+- name: Create the app service user
   ansible.builtin.user:
-    name: "{{ item.name }}"
-    group: "{{ item.name }}"
-    home: "{{ site_home_base }}/{{ item.name }}"
+    name: "{{ app_name }}"
+    group: "{{ app_name }}"
+    home: "{{ site_home_base }}/{{ app_name }}"
     shell: /bin/bash
     system: true
     create_home: true
     state: present
-  loop: "{{ sites }}"
-  loop_control:
-    label: "{{ item.name }}"
 
 # --- File descriptors: ejabberd's #1 real-world gotcha (default 1024 caps ~1k conns) ---
 - name: Raise global file descriptor limits (PAM)

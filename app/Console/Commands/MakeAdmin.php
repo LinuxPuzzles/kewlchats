@@ -51,6 +51,7 @@ class MakeAdmin extends Command
         $name = (string) $this->ask('Display name', 'Admin');
         $username = strtolower(trim((string) $this->ask('XMPP username (localpart)')));
         $password = (string) $this->secret('Password');
+        $domain = (string) $this->ask('Home domain (JID suffix)', (string) config('sites.primary', config('xmpp.domain')));
 
         $validator = Validator::make(
             ['username' => $username, 'password' => $password],
@@ -70,6 +71,7 @@ class MakeAdmin extends Command
             'email' => $email,
             'password' => $password,          // hashed by the model cast
             'xmpp_username' => $username,
+            'domain' => $domain,
         ]);
 
         $user->forceFill([
@@ -79,7 +81,7 @@ class MakeAdmin extends Command
         ])->save();
 
         // Provision the real XMPP account with the chosen password.
-        $xmpp->register($username, $password);
+        $xmpp->register($username, $password, $domain);
 
         $this->info("Provisioned {$email}.");
 

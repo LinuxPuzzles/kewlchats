@@ -13,7 +13,7 @@ use Illuminate\Notifications\Notifiable;
 
 // xmpp_pending_secret (a secret) and xmpp_status are intentionally NOT fillable —
 // set them via forceFill so no future endpoint can mass-assign them.
-#[Fillable(['name', 'email', 'password', 'xmpp_username'])]
+#[Fillable(['name', 'email', 'password', 'xmpp_username', 'domain'])]
 #[Hidden(['password', 'remember_token', 'xmpp_pending_secret'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -27,7 +27,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         static::deleting(function (User $user) {
             if ($user->xmpp_username) {
-                UnregisterXmppAccount::dispatch($user->xmpp_username);
+                UnregisterXmppAccount::dispatch($user->xmpp_username, $user->domain);
             }
         });
     }
@@ -53,12 +53,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * The user's full XMPP address, e.g. "alice@kewlchats.net".
+     * The user's full XMPP address, e.g. "alice@kewlchats.net". The domain is their
+     * home vhost (the door they signed up at), stored on the row — NOT the browsed
+     * Host — so it's correct no matter which front door they're viewing.
      */
     public function jid(): ?string
     {
         return $this->xmpp_username
-            ? $this->xmpp_username.'@'.config('xmpp.domain')
+            ? $this->xmpp_username.'@'.$this->domain
             : null;
     }
 

@@ -2,11 +2,19 @@
 # Non-secret configuration for the box. Secrets you supply live in provided.yml
 # (gitignored); generated secrets are created on-box (see roles/secrets).
 
-# --- Sites -------------------------------------------------------------------
-# The SAME Laravel codebase is deployed once per site (separate checkout, DB,
-# .env, queue worker and nginx vhost). Each site's `domain` is also an ejabberd
-# virtual host; the two vhosts share one ejabberd node and route to each other
-# internally (no s2s needed). `aliases` 301-redirect to the canonical `domain`.
+# --- One install, multiple front doors ---------------------------------------
+# ONE Laravel checkout/DB/user/worker/FPM-pool (named `app_name`) serves every
+# domain; nginx points each domain's server block at the single docroot, and the
+# browsed Host selects the brand/theme skin at runtime (config/sites.php). A user's
+# home domain lives on their row, so there's no per-site Laravel deploy.
+app_name: kewlchats              # the single install's checkout / DB / user / worker / pool
+primary_domain: kewlchats.net    # boot/fallback door (APP_URL, default brand/theme)
+
+# --- Front doors --------------------------------------------------------------
+# Each `domain` is also an ejabberd virtual host; the vhosts share one ejabberd node
+# and route to each other internally (no s2s). `aliases` 301-redirect to `domain`.
+# This list drives the per-domain nginx server blocks, certs, and ejabberd vhosts —
+# NOT separate Laravel deploys.
 sites:
   - name: kewlchats
     domain: kewlchats.net
@@ -113,6 +121,10 @@ xmpp_landing_room: "lounge@conference.ready2.im"
 # the OGs — but the room space is one community on ready2.im's conference, so the room
 # directory + occupant counts are identical on both doors.
 xmpp_muc_domain: "conference.ready2.im"
+# The vhost that actually RUNS the shared MUC service (ejabberd mod_muc is per-vhost;
+# we load it on this one host only, so conference.<other-vhost> is never created). The
+# other vhosts advertise xmpp_muc_domain via mod_disco so their clients still find it.
+muc_vhost: "ready2.im"
 mysql_innodb_buffer_pool: "2G"
 
 # --- Redis (shared; Laravel prefixes keys per app) ----------------------------
@@ -141,8 +153,9 @@ upload_max_days: 30              # delete uploaded files older than N days
 # its OWN persistent connection and uses no push gateway — it needs nothing here, and
 # works fine with general federation off. Add a domain only for a genuinely push-based
 # client, taken from the `jid` in its XEP-0357 <enable> stanza (visible in mod_push logs).
-# We keep federation otherwise closed (no inbound 5269 listener); these are the only
-# remote domains OUTBOUND s2s may reach.
+# s2s is enabled BOTH directions (Monal's appserver answers via a reverse/dialback
+# connection, so inbound 5269 is needed too) but s2s_access permits only these domains;
+# every other server is rejected at the stream layer, so general federation stays off.
 s2s_push_domains:
   - eu.prod.push.monal-im.org    # Monal (iOS) — Europe region
   - us.prod.push.monal-im.org    # Monal (iOS) — US region

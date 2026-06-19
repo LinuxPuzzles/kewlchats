@@ -18,11 +18,11 @@ use Illuminate\Support\Str;
  */
 class EjabberdApiProvisioner implements XmppProvisioner
 {
-    public function register(string $username, string $password): void
+    public function register(string $username, string $password, string $domain): void
     {
         $resp = $this->call('register', [
             'user' => $username,
-            'host' => $this->host(),
+            'host' => $domain,
             'password' => $password,
         ]);
 
@@ -41,11 +41,11 @@ class EjabberdApiProvisioner implements XmppProvisioner
         $resp->throw();
     }
 
-    public function unregister(string $username): void
+    public function unregister(string $username, string $domain): void
     {
         $resp = $this->call('unregister', [
             'user' => $username,
-            'host' => $this->host(),
+            'host' => $domain,
         ]);
 
         if ($resp->successful()) {
@@ -61,31 +61,40 @@ class EjabberdApiProvisioner implements XmppProvisioner
         $resp->throw();
     }
 
-    public function changePassword(string $username, string $newPassword): void
+    public function changePassword(string $username, string $newPassword, string $domain): void
     {
         $this->call('change_password', [
             'user' => $username,
-            'host' => $this->host(),
+            'host' => $domain,
             'newpass' => $newPassword,
         ])->throw();
     }
 
     public function accountExists(string $username): bool
     {
-        $resp = $this->call('check_account', [
-            'user' => $username,
-            'host' => $this->host(),
-        ])->throw();
+        // The community spans multiple vhosts on one ejabberd node, so a localpart is
+        // "taken" if it exists on ANY of them — that's what stops a second person from
+        // grabbing andy@ready2.im when andy@kewlchats.net is already someone's.
+        foreach ($this->communityHosts() as $host) {
+            $resp = $this->call('check_account', [
+                'user' => $username,
+                'host' => $host,
+            ])->throw();
 
-        // check_account returns 0 = exists, 1 = not registered.
-        return (int) $resp->json() === 0;
+            // check_account returns 0 = exists, 1 = not registered.
+            if ((int) $resp->json() === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    public function lastActivity(string $username): ?CarbonInterface
+    public function lastActivity(string $username, string $domain): ?CarbonInterface
     {
         $resp = $this->call('get_last', [
             'user' => $username,
-            'host' => $this->host(),
+            'host' => $domain,
         ]);
 
         if (! $resp->successful()) {
@@ -171,12 +180,12 @@ class EjabberdApiProvisioner implements XmppProvisioner
         return $localparts;
     }
 
-    public function issueChatToken(string $username): ?array
+    public function issueChatToken(string $username, string $domain): ?array
     {
         $ttl = (int) config('xmpp.web_chat.token_ttl', 3600);
 
         $resp = $this->call('oauth_issue_token', [
-            'jid' => $username.'@'.$this->host(),
+            'jid' => $username.'@'.$domain,
             'ttl' => $ttl,
             'scopes' => 'sasl_auth',
         ]);
@@ -191,28 +200,28 @@ class EjabberdApiProvisioner implements XmppProvisioner
         ];
     }
 
-    public function ban(string $username, string $reason): void
+    public function ban(string $username, string $reason, string $domain): void
     {
         $this->call('ban_account', [
             'user' => $username,
-            'host' => $this->host(),
+            'host' => $domain,
             'reason' => $reason,
         ])->throw();
     }
 
-    public function unban(string $username): void
+    public function unban(string $username, string $domain): void
     {
         $this->call('unban_account', [
             'user' => $username,
-            'host' => $this->host(),
+            'host' => $domain,
         ])->throw();
     }
 
-    public function kick(string $username): void
+    public function kick(string $username, string $domain): void
     {
         $this->call('kick_user', [
             'user' => $username,
-            'host' => $this->host(),
+            'host' => $domain,
         ])->throw();
     }
 
@@ -221,7 +230,7 @@ class EjabberdApiProvisioner implements XmppProvisioner
         $this->call('create_room_with_opts', [
             'room' => $localpart,
             'service' => (string) config('xmpp.muc_domain'),
-            'host' => $this->host(),
+            'host' => $this->mucVhost(),
             // Persistent (survives empty) + public (listed) open channel.
             'options' => [
                 ['name' => 'persistent', 'value' => 'true'],
@@ -257,6 +266,26 @@ class EjabberdApiProvisioner implements XmppProvisioner
     protected function host(): string
     {
         return (string) config('xmpp.domain');
+    }
+
+    /** The vhost that owns the shared MUC service (conference.ready2.im -> ready2.im). */
+    protected function mucVhost(): string
+    {
+        return (string) config('xmpp.muc_vhost', Str::after((string) config('xmpp.muc_domain'), '.'));
+    }
+
+    /**
+     * Every vhost that shares the localpart namespace (always includes our own),
+     * used to enforce community-wide username uniqueness.
+     *
+     * @return list<string>
+     */
+    protected function communityHosts(): array
+    {
+        $domains = (array) config('xmpp.community_domains', []);
+        $domains[] = $this->host();
+
+        return array_values(array_unique(array_filter($domains)));
     }
 
     /**

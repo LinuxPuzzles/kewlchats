@@ -22,13 +22,13 @@ class BanXmppAccount implements ShouldQueue
     /** @var array<int, int> */
     public array $backoff = [10, 30, 60, 120];
 
-    public function __construct(public string $username, public string $reason)
+    public function __construct(public string $username, public string $reason, public string $domain)
     {
     }
 
     public function handle(XmppProvisioner $xmpp): void
     {
-        $xmpp->ban($this->username, $this->reason);
+        $xmpp->ban($this->username, $this->reason, $this->domain);
 
         User::where('xmpp_username', $this->username)
             ->whereNotNull('xmpp_desynced_at')

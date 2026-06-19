@@ -53,7 +53,7 @@ class SecurityHardeningTest extends TestCase
         config(['xmpp.api.base' => 'http://ejabberd.test/api', 'xmpp.api.token' => 'tok']);
         Http::fake(['*oauth_issue_token*' => Http::response(['token' => 'abc', 'expires_in' => '600'])]);
 
-        (new EjabberdApiProvisioner)->issueChatToken('alice');
+        (new EjabberdApiProvisioner)->issueChatToken('alice', 'kewlchats.net');
 
         Http::assertSent(fn ($req) => str_contains($req->url(), 'oauth_issue_token')
             && str_contains($req->body(), '"scopes":"sasl_auth"')

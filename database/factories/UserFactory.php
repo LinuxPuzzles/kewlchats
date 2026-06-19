@@ -30,6 +30,9 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            // Home XMPP vhost / JID suffix — defaults to the configured domain so
+            // jid() resolves whenever a test also sets xmpp_username.
+            'domain' => config('xmpp.domain'),
         ];
     }
 

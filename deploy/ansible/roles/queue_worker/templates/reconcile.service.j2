@@ -1,10 +1,10 @@
 [Unit]
-Description=KewlChats XMPP reconcile ({{ site.name }})
+Description=KewlChats XMPP reconcile ({{ app_name }})
 After=network.target ejabberd.service
 
 [Service]
 Type=oneshot
-User={{ site.name }}
-Group={{ site.name }}
-WorkingDirectory={{ app_root }}/{{ site.name }}
-ExecStart=/usr/bin/php{{ php_version }} {{ app_root }}/{{ site.name }}/artisan kewlchats:reconcile
+User={{ app_name }}
+Group={{ app_name }}
+WorkingDirectory={{ app_root }}/{{ app_name }}
+ExecStart=/usr/bin/php{{ php_version }} {{ app_root }}/{{ app_name }}/artisan kewlchats:reconcile

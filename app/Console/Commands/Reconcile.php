@@ -40,10 +40,10 @@ class Reconcile extends Command
             try {
                 switch ($reason) {
                     case 'ban':
-                        $xmpp->ban($user->xmpp_username, $user->ban_reason ?? 'Reconciled.');
+                        $xmpp->ban($user->xmpp_username, $user->ban_reason ?? 'Reconciled.', $user->domain);
                         break;
                     case 'unban':
-                        $xmpp->unban($user->xmpp_username);
+                        $xmpp->unban($user->xmpp_username, $user->domain);
                         break;
                     default: // 'password' or unknown — not re-drivable
                         $passwordDrift[] = $user->email;

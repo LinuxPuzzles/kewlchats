@@ -34,28 +34,22 @@
 
 # Root connects over the unix socket as the local root user (Ubuntu default
 # auth_socket); no root password needed when running as root.
-- name: Create per-site application databases
+- name: Create the application database
   ansible.mysql.mysql_db:
-    name: "{{ item.name }}"
+    name: "{{ app_name }}"
     encoding: utf8mb4
     collation: utf8mb4_unicode_ci
     state: present
     login_unix_socket: /run/mysqld/mysqld.sock
-  loop: "{{ sites }}"
-  loop_control:
-    label: "{{ item.name }}"
 
-- name: Create per-site application DB users
+- name: Create the application DB user
   ansible.mysql.mysql_user:
-    name: "{{ item.name }}"
-    password: "{{ lookup('vars', 'db_password_' ~ item.name) }}"
+    name: "{{ app_name }}"
+    password: "{{ lookup('vars', 'db_password_' ~ app_name) }}"
     host: 127.0.0.1
-    priv: "{{ item.name }}.*:ALL"
+    priv: "{{ app_name }}.*:ALL"
     state: present
     login_unix_socket: /run/mysqld/mysqld.sock
-  loop: "{{ sites }}"
-  loop_control:
-    label: "{{ item.name }}"
   no_log: true
 
 - name: Create ejabberd database

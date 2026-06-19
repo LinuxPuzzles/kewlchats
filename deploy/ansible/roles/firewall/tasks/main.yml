@@ -64,6 +64,8 @@
     - { port: "80", proto: tcp }      # nginx HTTP (redirect + ACME fallback)
     - { port: "443", proto: tcp }     # nginx HTTPS
     - { port: "5222", proto: tcp }    # XMPP c2s (STARTTLS) for native apps
+    - { port: "5223", proto: tcp }    # XMPP c2s direct TLS (XEP-0368) — Monal/_xmpps-client SRV
+    - { port: "5269", proto: tcp }    # XMPP s2s in — gated to push gateways by s2s_access (not open federation)
     - { port: "5478", proto: udp }    # STUN/TURN signaling
   notify: Reload ufw
 

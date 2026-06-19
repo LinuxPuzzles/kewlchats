@@ -25,6 +25,7 @@ class DevUserSeeder extends Seeder
         $email = 'andy@andyjames.org';
         $username = 'andy';
         $password = 'password123';
+        $domain = (string) config('xmpp.domain');
 
         $xmpp = app(XmppProvisioner::class);
 
@@ -32,13 +33,14 @@ class DevUserSeeder extends Seeder
         // (the User `deleting` hook unregisters the JID), then make sure the XMPP
         // side is gone too.
         User::where('xmpp_username', $username)->orWhere('email', $email)->get()->each->delete();
-        $xmpp->unregister($username);
+        $xmpp->unregister($username, $domain);
 
         $user = User::create([
             'name' => 'Andy',
             'email' => $email,
             'password' => $password,        // hashed by the model cast
             'xmpp_username' => $username,
+            'domain' => $domain,
         ]);
 
         // status / verified / admin aren't mass-assignable, so set them directly.
@@ -50,7 +52,7 @@ class DevUserSeeder extends Seeder
         ])->save();
 
         // Provision the real ejabberd account with the known password.
-        $xmpp->register($username, $password);
+        $xmpp->register($username, $password, $domain);
 
         $this->command->info("Seeded {$email} / {$password}  (JID {$username}@".config('xmpp.domain').')');
     }

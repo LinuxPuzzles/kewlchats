@@ -1,12 +1,11 @@
-; Managed by Ansible (kewlchats) — PHP-FPM pool for {{ site.name }} ({{ site.domain }}).
-; Pool children run as the site's own user; nginx ({{ web_user }}) connects via
-; the socket below, which is owned by {{ web_user }} so only nginx (and root) can
-; reach it. This is the per-site isolation boundary.
-[{{ site.name }}]
-user = {{ site.name }}
-group = {{ site.name }}
+; Managed by Ansible (kewlchats) — PHP-FPM pool for the {{ app_name }} app (all front doors).
+; Children run as the {{ app_name }} user; nginx ({{ web_user }}) connects via the socket
+; below, which is owned by {{ web_user }} so only nginx (and root) can reach it.
+[{{ app_name }}]
+user = {{ app_name }}
+group = {{ app_name }}
 
-listen = /run/php/{{ site.name }}.sock
+listen = /run/php/{{ app_name }}.sock
 listen.owner = {{ web_user }}
 listen.group = {{ web_group }}
 listen.mode = 0660
