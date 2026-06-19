@@ -22,7 +22,8 @@ class ChatTokenTest extends TestCase
 
         $response->assertOk()->assertJsonStructure(['jid', 'password', 'expires_at']);
 
-        $this->assertSame('alice@'.config('xmpp.domain'), $response->json('jid'));
+        // JID comes from the user's own domain (their row), not the browsed Host.
+        $this->assertSame($user->jid(), $response->json('jid'));
 
         // The "password" field carries a minted, self-expiring token — never the
         // user's real secret or the hashed password.

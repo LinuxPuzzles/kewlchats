@@ -40,20 +40,20 @@ class XmppProvisioningTest extends TestCase
         $this->assertNull($user->xmpp_provisioned_at);
         // Stash holds the chosen password (decrypts back via the cast).
         $this->assertSame('password', $user->xmpp_pending_secret);
-        $this->assertSame('alice@'.config('xmpp.domain'), $user->jid());
+        $this->assertSame('alice@'.$user->domain, $user->jid());
     }
 
     public function test_verifying_email_provisions_account_and_wipes_the_stash(): void
     {
-        $mock = Mockery::mock(XmppProvisioner::class);
-        $mock->shouldReceive('register')->once()->with('bob', 'password', config('xmpp.domain'));
-        $this->app->instance(XmppProvisioner::class, $mock);
-
         $user = User::factory()->unverified()->create([
             'xmpp_username' => 'bob',
             'xmpp_pending_secret' => 'password',
             'xmpp_status' => 'pending',
         ]);
+
+        $mock = Mockery::mock(XmppProvisioner::class);
+        $mock->shouldReceive('register')->once()->with('bob', 'password', $user->domain);
+        $this->app->instance(XmppProvisioner::class, $mock);
 
         $url = URL::temporarySignedRoute(
             'verification.verify',
@@ -114,7 +114,7 @@ class XmppProvisioningTest extends TestCase
         $response = $this->actingAs($user)->get('/dashboard');
 
         $response->assertOk();
-        $response->assertSee('erin@'.config('xmpp.domain'));
+        $response->assertSee($user->jid());
         // Neither the secret stash nor the hashed password may appear.
         $response->assertDontSee('S3cretSentinelValue');
         $response->assertDontSee($user->getAuthPassword());
