@@ -28,6 +28,10 @@ return [
             'theme' => 'kewlchats',
             'mail_theme' => 'default',
             'mail_from' => 'hello@kewlchats.net',
+            'description' => 'Your people are already here — group chats, DMs and calls.',
+            'og_image' => '/og/kewlchats.jpg',
+            'icon' => '/icons/kewlchats-32.png',
+            'icon_large' => '/icons/kewlchats-512.png',
         ],
         'ready2.im' => [
             'domain' => 'ready2.im',
@@ -35,6 +39,10 @@ return [
             'theme' => 'ready2im',
             'mail_theme' => 'ready2im',
             'mail_from' => 'hello@ready2.im',
+            'description' => 'Instant messaging, like it used to be. The buddy list is back.',
+            'og_image' => '/og/ready2im.jpg',
+            'icon' => '/icons/ready2im-32.png',
+            'icon_large' => '/icons/ready2im-512.png',
         ],
     ],
 

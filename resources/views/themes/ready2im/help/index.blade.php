@@ -6,6 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <x-site-meta />
     <title>Help &amp; Guide — {{ config('app.name', 'ready2.im') }}</title>
     <meta name="description" content="How to add friends, join rooms, start group chats and make calls on ready2.im.">
     @vite(['resources/css/themes/ready2im.css', 'resources/js/app.js'])

@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <x-site-meta :title="$title" />
     <title>{{ $title }} — {{ config('app.name', 'ready2.im') }}</title>
     @vite(['resources/css/themes/ready2im.css', 'resources/js/app.js'])
 </head>

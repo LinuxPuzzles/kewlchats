@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <x-site-meta />
     <title>KewlChats — your own place to chat with friends</title>
     <meta name="description" content="Free group chats, private messages, and calls for you and your friends. No ads, no snooping, no catch.">
     <link rel="preconnect" href="https://fonts.bunny.net">

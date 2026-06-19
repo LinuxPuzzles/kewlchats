@@ -5,6 +5,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <x-site-meta />
     <title>ready2.im — instant messaging, like it used to be</title>
     <meta name="description" content="Free instant messaging the way it used to feel: pick a name, get a buddy list, and join rooms full of people right now. Group chats, private messages and calls in your browser — no app, no ads.">
     @vite(['resources/css/themes/ready2im.css', 'resources/js/app.js'])

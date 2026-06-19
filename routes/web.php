@@ -16,10 +16,6 @@ Route::view('/privacy', 'legal.privacy')->name('privacy');
 Route::get('/help', [HelpController::class, 'index'])->name('help');
 Route::get('/help/{slug}', [HelpController::class, 'show'])->name('help.show');
 
-// TEMP — Open Graph card mockups for screenshotting. Delete this route + the
-// resources/views/og-cards.blade.php view once the 1200×630 images are captured.
-Route::view('/_og-cards', 'og-cards');
-
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
