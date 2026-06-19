@@ -18,6 +18,9 @@
                     <x-nav-link :href="route('chat')" :active="request()->routeIs('chat')">
                         {{ __('Chat') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('help')" :active="request()->routeIs('help')">
+                        {{ __('Help') }}
+                    </x-nav-link>
                     @can('admin')
                         <x-nav-link :href="route('admin.users')" :active="request()->routeIs('admin.*')">
                             {{ __('Admin') }}
@@ -80,6 +83,9 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('chat')" :active="request()->routeIs('chat')">
                 {{ __('Chat') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('help')" :active="request()->routeIs('help')">
+                {{ __('Help') }}
             </x-responsive-nav-link>
             @can('admin')
                 <x-responsive-nav-link :href="route('admin.users')" :active="request()->routeIs('admin.*')">

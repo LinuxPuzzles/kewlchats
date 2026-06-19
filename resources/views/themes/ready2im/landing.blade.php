@@ -188,6 +188,7 @@
         <div class="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
             <span>© {{ date('Y') }} ready2.im — independent &amp; ad-free since 2001</span>
             <span class="flex gap-4">
+                <a href="{{ route('help') }}" class="font-semibold text-blue-800 hover:text-blue-900 underline transition">Help</a>
                 <a href="{{ route('terms') }}" class="font-semibold text-blue-800 hover:text-blue-900 underline transition">Terms</a>
                 <a href="{{ route('privacy') }}" class="font-semibold text-blue-800 hover:text-blue-900 underline transition">Privacy</a>
             </span>

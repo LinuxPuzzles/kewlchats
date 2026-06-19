@@ -132,7 +132,8 @@
                 <span class="r2-winbtns" aria-hidden="true"><span class="r2-winbtn">_</span><span class="r2-winbtn">▢</span><span class="r2-winbtn r2-winbtn--close">✕</span></span>
             </div>
             <div class="r2-winbody p-6">
-                <p class="text-sm text-slate-600">Public group chats — tap one to open it in your app and jump in.</p>
+                <p class="text-sm text-slate-600">Public group chats — tap one to open it in your app and jump in.
+                    New here? <a href="{{ route('help') }}" class="text-blue-700 underline">Read the guide</a> on adding friends &amp; joining rooms.</p>
                 <div class="mt-4 grid sm:grid-cols-2 gap-3">
                     @foreach ($rooms as $room)
                         <a href="xmpp:{{ $room['jid'] }}?join" class="block border border-slate-300 rounded p-3 hover:border-blue-400 hover:bg-blue-50 transition">

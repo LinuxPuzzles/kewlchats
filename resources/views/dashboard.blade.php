@@ -134,7 +134,8 @@
             {{-- Featured rooms --}}
             <div class="bg-white/5 border border-white/10 overflow-hidden shadow-sm rounded-2xl p-6">
                 <h3 class="text-lg font-semibold text-slate-100">Featured rooms</h3>
-                <p class="text-sm text-slate-400 mt-1">Public group chats — tap one to open it in your app and jump in.</p>
+                <p class="text-sm text-slate-400 mt-1">Public group chats — tap one to open it in your app and jump in.
+                    New here? <a href="{{ route('help') }}" class="text-fuchsia-300 hover:text-fuchsia-200 underline">Read the guide</a> on adding friends &amp; joining rooms.</p>
 
                 <div class="mt-4 grid sm:grid-cols-2 gap-4">
                     @foreach ($rooms as $room)

@@ -7,6 +7,8 @@
 ###   - NO IPv6: c2s on 0.0.0.0, HTTP API on 127.0.0.1 only, 5443 dropped
 ###   - MySQL backend (new schema), shared by all vhosts
 ###   - MAM ON, full retention (archive kept; no trim timer)
+###   - HTTP File Upload (XEP-0363): mod_http_upload + quota (25 MiB/file, 30-day expiry)
+###   - s2s: OUTBOUND-ONLY, allowlisted to push gateways (XEP-0357 push); no inbound 5269
 ###   - Let's Encrypt certs (shared with nginx; wildcards cover conference/pubsub)
 ###   - TURN advertises the server's public IPv4
 ###
@@ -32,6 +34,14 @@ certfiles:
 ## port 80, fighting nginx. (auto is ON by default.) Renewal stays certbot's job.
 acme:
   auto: false
+
+## --- s2s: OUTBOUND-ONLY, allowlisted to push gateways (mobile push needs it) ---
+## XEP-0357 push is delivered by us connecting out to the apps' push app-servers
+## (e.g. *.prod.push.monal-im.org) over s2s. There is NO inbound 5269 listener, and s2s_access
+## permits s2s ONLY to the push_servers ACL below — so general federation stays off.
+## (Harden later: s2s_use_starttls: required_trusted + ca_file to verify their certs.)
+s2s_use_starttls: required
+s2s_access: s2s_push
 
 ## OAuth: Laravel mints short-lived X-OAUTH2 tokens for web chat and authenticates
 ## the ReST API with a bearer token.
@@ -72,6 +82,7 @@ listen:
       /api: mod_http_api
       /bosh: mod_bosh
       /ws: ejabberd_http_ws
+      /upload: mod_http_upload    # XEP-0363 (nginx proxies https://<domain>/upload here)
   -
     ## Built-in STUN/TURN for Jingle voice/video (no coturn).
     port: 5478
@@ -82,7 +93,8 @@ listen:
     turn_min_port: {{ turn_min_port }}
     turn_max_port: {{ turn_max_port }}
 
-## --- Federation OFF: no 5269 s2s listener, no s2s modules. ---
+## --- No inbound s2s: 5269 deliberately not listened on. Outbound s2s is allowed
+## only to the push gateways (see s2s_access / push_servers ACL) for XEP-0357. ---
 
 acl:
   local:
@@ -94,6 +106,11 @@ acl:
     user:
 {% for s in sites %}
       - "admin@{{ s.domain }}"
+{% endfor %}
+  push_servers:
+    server:
+{% for d in s2s_push_domains %}
+      - {{ d }}
 {% endfor %}
 
 access_rules:
@@ -112,6 +129,10 @@ access_rules:
     allow: local
   trusted_network:
     allow: loopback
+  # s2s permitted only to the push gateways (everything else denied = walled garden).
+  s2s_push:
+    allow: push_servers
+    deny: all
 
 api_permissions:
   "console commands":
@@ -153,6 +174,11 @@ shaper_rules:
   c2s_shaper:
     none: admin
     normal: all
+  # Per-user HTTP-upload quotas (MiB) — read by mod_http_upload_quota.
+  soft_upload_quota:
+    {{ upload_soft_quota_mb }}: all
+  hard_upload_quota:
+    {{ upload_hard_quota_mb }}: all
 
 modules:
   mod_adhoc: {}
@@ -170,6 +196,27 @@ modules:
   mod_disco: {}
   mod_fail2ban: {}
   mod_http_api: {}
+  mod_http_upload:          # XEP-0363: share images/files (Monal/Conversations/web)
+    # Service JID upload.@HOST@ per vhost; the HTTP endpoint is the loopback :5280
+    # listener, which nginx exposes as https://<domain>/upload. @HOST@ resolves to
+    # each vhost, so every site hands out its own URL.
+    host: "upload.@HOST@"
+    name: "File Upload"
+    docroot: "{{ ejabberd_upload_dir }}"
+    put_url: "https://@HOST@/upload"
+    get_url: "https://@HOST@/upload"
+    max_size: {{ upload_max_size }}   # per-file cap (bytes)
+    thumbnail: false        # skip server-side thumbnails (avoids the ImageMagick/eimp dep)
+    file_mode: "0640"
+    dir_mode: "0750"
+    # OMEMO media (aesgcm://) and cross-site viewing fetch over XHR — allow CORS so
+    # web chat can decrypt/display media hosted on the other vhost's domain.
+    custom_headers:
+      "Access-Control-Allow-Origin": "*"
+      "Access-Control-Allow-Methods": "GET,HEAD,PUT,OPTIONS"
+      "Access-Control-Allow-Headers": "Content-Type"
+  mod_http_upload_quota:    # cap per-user storage + expire old files (storage/privacy lever)
+    max_days: {{ upload_max_days }}
   mod_last: {}              # backs get_last -> lastActivity()
   mod_mam:                  # MAM ON: full server-side archive (no retention trim)
     db_type: sql

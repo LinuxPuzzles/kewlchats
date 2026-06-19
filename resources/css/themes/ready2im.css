@@ -129,8 +129,10 @@
     .prose-legal { color: #33415a; line-height: 1.7; }
     .prose-legal h1 { @apply text-3xl font-extrabold text-slate-900 mb-3; }
     .prose-legal h2 { @apply text-xl font-bold text-slate-900 mt-8 mb-2; }
+    .prose-legal h3 { @apply text-lg font-bold text-slate-900 mt-6 mb-2; }
     .prose-legal p  { @apply my-3; }
     .prose-legal ul { @apply list-disc ps-6 my-3 space-y-1; }
+    .prose-legal ol { @apply list-decimal ps-6 my-3 space-y-1; }
     .prose-legal a  { @apply text-blue-700 underline; }
     .prose-legal strong { @apply font-semibold text-slate-900; }
     .prose-legal code, .prose-legal .font-mono { @apply text-blue-700; }

@@ -8,6 +8,7 @@
                 <div class="hidden sm:flex items-center gap-1">
                     <a href="{{ route('dashboard') }}" class="r2-navlink {{ request()->routeIs('dashboard') ? 'r2-navlink--active' : '' }}">Dashboard</a>
                     <a href="{{ route('chat') }}" class="r2-navlink {{ request()->routeIs('chat') ? 'r2-navlink--active' : '' }}">Chat</a>
+                    <a href="{{ route('help') }}" class="r2-navlink {{ request()->routeIs('help') ? 'r2-navlink--active' : '' }}">Help</a>
                     @can('admin')
                         <a href="{{ route('admin.users') }}" class="r2-navlink {{ request()->routeIs('admin.*') ? 'r2-navlink--active' : '' }}">Admin</a>
                     @endcan
@@ -40,6 +41,7 @@
         <div x-show="open" x-cloak class="sm:hidden pb-3 space-y-1">
             <a href="{{ route('dashboard') }}" class="block r2-navlink">Dashboard</a>
             <a href="{{ route('chat') }}" class="block r2-navlink">Chat</a>
+            <a href="{{ route('help') }}" class="block r2-navlink">Help</a>
             @can('admin')
                 <a href="{{ route('admin.users') }}" class="block r2-navlink">Admin</a>
             @endcan

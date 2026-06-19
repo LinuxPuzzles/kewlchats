@@ -70,6 +70,15 @@
     mode: "0644"
   notify: Restart ejabberd
 
+# --- HTTP File Upload docroot (XEP-0363) ---
+- name: Create ejabberd HTTP-upload docroot
+  ansible.builtin.file:
+    path: "{{ ejabberd_upload_dir }}"
+    state: directory
+    owner: ejabberd
+    group: ejabberd
+    mode: "0750"
+
 # --- Main config ---
 - name: Deploy ejabberd.yml
   ansible.builtin.template:

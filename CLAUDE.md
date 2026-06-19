@@ -96,11 +96,17 @@ These are product/privacy decisions, not derivable from code. The whole posture 
 features, so we retain almost nothing. The vibe is intentionally IRC-like — ephemeral,
 "you had to be there."
 
-- **Federation OFF at launch (closed/walled-garden, `s2s` disabled).** Long-term ethos is
+- **Federation closed at launch, EXCEPT outbound s2s to push gateways.** Long-term ethos is
   open federation ("make all XMPP apps work, like all XMPP does"), but launch closed and
   open later: closed→open is non-breaking (users *gain* reach), open→closed breaks existing
-  cross-server contacts. Don't enable `s2s` until abuse/spam controls + a written retention
-  policy exist.
+  cross-server contacts. General federation stays off until abuse/spam controls exist.
+  **The one exception is mandatory:** XEP-0357 mobile push is *delivered* by ejabberd connecting
+  out to the apps' push app-servers (Monal: `eu/us.prod.push.monal-im.org`) — that's s2s. iOS (Monal) can't hold a
+  background socket, so **no push = no notifications**, and you can't self-host the gateway (it
+  needs the app vendor's APNs cert). So: **no inbound 5269 listener**, but **outbound s2s is enabled
+  and `s2s_access`-gated to a `push_servers` allowlist** (`s2s_push_domains` in group_vars) — push
+  works, everything else stays walled. Symptom when this is off: Monal's tester is all-green
+  (registration) but its debug Ping fails `STARTTLS is disabled / remote-server-timeout` (delivery).
 - **Message archive (MAM ON, full retention — no trim).** *Twice revised:* original stance was
   "MAM off / zero archive"; then "MAM on, trimmed to 7 days"; **now MAM on with no retention
   limit** (the daily `delete_old_mam_messages` timer is removed). The reasoning behind the trim
@@ -111,6 +117,17 @@ features, so we retain almost nothing. The vibe is intentionally IRC-like — ep
   exist and *do something stupid and there can be consequences*. So we keep the archive (better
   UX — real scrollback, multi-device sync, client testing) and stop pretending short retention is
   the privacy win. (Disk is a non-issue — text on a 480 GB SSD; revisit only if it ever grows large.)
+- **HTTP File Upload (XEP-0363 — ON, but media is ephemeral).** `mod_http_upload` +
+  `mod_http_upload_quota` (in `ejabberd.yml.j2`): without it clients (Monal/Conversations/web) can't
+  share images/files at all. **Deliberately the *opposite* retention posture from MAM:** text history
+  is kept forever (cheap), but **media auto-expires (~30 days)** because files are the heavy, sensitive
+  part — the real storage *and* legal-exposure lever. Sane caps live in `group_vars`
+  (`upload_max_size` 25 MiB/file, `upload_soft/hard_quota_mb` 200/250 MiB per user, `upload_max_days`
+  30). Served on the loopback `:5280` listener (`/upload` handler) and exposed by nginx as
+  `https://<domain>/upload` (its own `location` with `client_max_body_size` > max_size); `put_url`
+  uses `@HOST@` so each vhost hands out its own URL. With OMEMO the file is encrypted client-side →
+  we store ciphertext. When a file expires its link dies but the message stays in MAM. Docroot
+  `ejabberd_upload_dir` (`/opt/ejabberd/upload`, created owned by `ejabberd`).
 - **Smooth multi-device:** Carbons (`mod_carbons`) ON so simultaneous phone+laptop both see
   live messages; short-lived **offline spool** (`mod_offline`); MUC room history small
   (`history_size: 20`, room `mam: true`). With full MAM a device that was *off* syncs scrollback

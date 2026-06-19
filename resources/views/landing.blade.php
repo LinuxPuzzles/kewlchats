@@ -349,6 +349,7 @@
             <span>© {{ date('Y') }} KewlChats</span>
             <span class="text-center sm:text-right">Independent &amp; ad-free since 2001. Your account works in any app you like — never locked to us.</span>
             <span class="flex gap-4">
+                <a href="{{ route('help') }}" class="hover:text-slate-200 transition">Help</a>
                 <a href="{{ route('terms') }}" class="hover:text-slate-200 transition">Terms</a>
                 <a href="{{ route('privacy') }}" class="hover:text-slate-200 transition">Privacy</a>
             </span>

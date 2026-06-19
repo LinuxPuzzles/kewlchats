@@ -123,7 +123,29 @@ redis_maxmemory: "1gb"
 # layout): config is /opt/ejabberd/conf/ejabberd.yml, logs /opt/ejabberd/logs.
 ejabberd_conf_dir: /opt/ejabberd/conf
 ejabberd_certs_dir: "{{ ejabberd_conf_dir }}/certs"
+ejabberd_upload_dir: /opt/ejabberd/upload   # XEP-0363 HTTP File Upload docroot
 le_live_base: /etc/letsencrypt/live
+
+# --- HTTP File Upload (XEP-0363) — sane caps so media can't fill the 480 GB SSD.
+#   per-file 25 MiB; per-user soft/hard 200/250 MiB; files auto-deleted after 30 days.
+#   (Text MAM is kept forever — cheap; media is the heavy, sensitive part, so it's
+#   the lever for both storage and privacy/legal exposure.)
+upload_max_size: 26214400        # 25 MiB per file (bytes)
+upload_soft_quota_mb: 200        # per-user soft quota (MiB)
+upload_hard_quota_mb: 250        # per-user hard quota (MiB)
+upload_max_days: 30              # delete uploaded files older than N days
+
+# --- s2s: closed EXCEPT outbound to push gateways (XEP-0357 mobile push) ----------
+# Only push-RELIANT clients need this. iOS (Monal) can't hold a background socket, so
+# delivery goes out to Monal's push app-servers over s2s. Conversations (Android) keeps
+# its OWN persistent connection and uses no push gateway — it needs nothing here, and
+# works fine with general federation off. Add a domain only for a genuinely push-based
+# client, taken from the `jid` in its XEP-0357 <enable> stanza (visible in mod_push logs).
+# We keep federation otherwise closed (no inbound 5269 listener); these are the only
+# remote domains OUTBOUND s2s may reach.
+s2s_push_domains:
+  - eu.prod.push.monal-im.org    # Monal (iOS) — Europe region
+  - us.prod.push.monal-im.org    # Monal (iOS) — US region
 
 # Issue from Let's Encrypt STAGING (untrusted certs, ~unlimited issuance) while
 # iterating on a throwaway box, so repeated rebuilds don't burn the production

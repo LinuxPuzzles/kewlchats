@@ -63,6 +63,17 @@
             room</strong> by their nature.
         </p>
 
+        <h2>Files &amp; photos</h2>
+        <p>
+            When you share an image, video or file in a chat, it's uploaded to and stored on our server
+            so your recipients — and your own other devices — can download it. To keep storage in check,
+            <strong>uploaded files are deleted automatically about 30 days after they're uploaded</strong>;
+            after that the link stops working, though the message that carried it may remain in the
+            archive. Where you share through an end-to-end-encrypted app, the file is encrypted before it
+            leaves your device, so what sits on our server is ciphertext we can't open. Anything you post
+            in a <strong>public room is visible to everyone in that room</strong>, files included.
+        </p>
+
         <h2>What we don't do</h2>
         <ul>
             <li><strong>No advertising or tracking.</strong> No ad networks, no tracking pixels, no
@@ -129,6 +140,8 @@
                 Deleting your account removes your account, chat identity, and your one-to-one and
                 private-group archive; messages you posted in public rooms may remain as part of that
                 room's history.</li>
+            <li><strong>Shared files &amp; photos:</strong> deleted automatically about 30 days after
+                upload, whichever comes first with account deletion.</li>
             <li>When you delete your account, we remove your account and chat identity.</li>
         </ul>
 
