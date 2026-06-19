@@ -310,10 +310,17 @@ ReST API (never `ejabberdctl`).
     auto-create `conference.<vhost>` for *every* site (so a `@kewlchats.net` client discovers
     `conference.kewlchats.net`). We want a single community room host (`xmpp_muc_domain` =
     `conference.ready2.im`), so in `ejabberd.yml.j2` `mod_muc`/`mod_muc_admin` are loaded via
-    `host_config` on **`muc_vhost` (ready2.im) only**; every other vhost gets
+    **`append_host_config`** on **`muc_vhost` (ready2.im) only**; every other vhost gets
     `mod_disco: extra_domains: [conference.ready2.im]` so its clients still discover the shared
     service. Cross-vhost joins route internally (no s2s). Symptom if this regresses: a native client
     (e.g. Monal) lists `conference.<its-own-domain>` instead of `conference.ready2.im`.
+    - **`append_host_config`, never `host_config`, for per-vhost modules.** `host_config` *replaces*
+      a vhost's entire `modules:` list — using it here silently dropped `mod_admin_extra`
+      (`check_account`), `mod_mam`, `mod_roster`, `mod_register`, etc. on both vhosts, which surfaced
+      as the ReST API returning `404 {"code":40,"Endpoint not found"}` on `check_account` during
+      signup (and would have broken archiving/rosters too). `append_host_config` *merges* onto the
+      global modules. A 404 "Endpoint not found" from `mod_http_api` = command/module not loaded
+      (NOT auth — auth failures are 401/403, and loopback grants node-admin regardless of token).
 - **Per-door theming (Host-resolved).** The `ResolveSite` middleware reads the Host, looks the door
   up in `config/sites.php`, and (via `SiteContext::applyWithTheme`) prepends
   `resources/views/themes/{theme}` to the view finder **and** sets `app.name`/mail config for the
