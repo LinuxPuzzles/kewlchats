@@ -105,22 +105,22 @@
     loop_var: site
     label: "{{ site.domain }}"
 
-# --- MAM 7-day retention trim (daily systemd timer) ---
-- name: Install MAM trim systemd units
-  ansible.builtin.template:
-    src: "{{ item }}.j2"
-    dest: "/etc/systemd/system/{{ item }}"
-    owner: root
-    group: root
-    mode: "0644"
+# --- MAM retention: UNLIMITED ---
+# We keep the archive but no longer trim it. The old daily delete_old_mam_messages
+# timer is torn down here (stop+disable+remove) so a re-run on a box that has it
+# stops deleting messages; no-op on a fresh box that never had it.
+- name: Stop & disable the old MAM trim timer (retention now unlimited)
+  ansible.builtin.systemd_service:
+    name: kewlchats-mam-trim.timer
+    state: stopped
+    enabled: false
+  failed_when: false
+
+- name: Remove the old MAM trim units
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}"
+    state: absent
   loop:
     - kewlchats-mam-trim.service
     - kewlchats-mam-trim.timer
   notify: Reload systemd
-
-- name: Enable MAM trim timer
-  ansible.builtin.systemd_service:
-    name: kewlchats-mam-trim.timer
-    enabled: true
-    state: started
-    daemon_reload: true

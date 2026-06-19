@@ -115,4 +115,22 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Markdown Mail Settings
+    |--------------------------------------------------------------------------
+    |
+    | Selects the CSS theme for markdown mail. Per-site via MAIL_THEME so each
+    | front door's email matches its brand (e.g. "ready2im" =>
+    | resources/views/vendor/mail/html/themes/ready2im.css); falls back to "default".
+    |
+    */
+
+    'markdown' => [
+        'theme' => env('MAIL_THEME', 'default'),
+        'paths' => [
+            resource_path('views/vendor/mail'),
+        ],
+    ],
+
 ];

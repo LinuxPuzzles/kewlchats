@@ -4,7 +4,7 @@
 
     <div class="prose-legal">
 
-        <p class="text-sm text-slate-500">Last updated: 12 June 2026</p>
+        <p class="text-sm text-slate-500">Last updated: 18 June 2026</p>
 
         <h1 class="text-4xl font-extrabold tracking-tight text-slate-100">Terms of Service</h1>
 
@@ -50,9 +50,11 @@
         <p>
             KewlChats gives you a chat identity and access to one-to-one messages, public and private
             group rooms, and voice/video calls, which you can use from your browser or a compatible
-            chat app. By design, <strong>we do not keep a history of your messages</strong> — chat is
-            live and in-the-moment, like walking into a room rather than reading a transcript. If you
-            want to keep something, save it yourself.
+            chat app. To make this work, the Service stores your messages so you get history and your
+            devices stay in sync. We don't read, mine, or sell them — see the
+            <a href="{{ route('privacy') }}">Privacy Policy</a> for exactly what we keep and how we
+            treat it. <strong>Public rooms are public</strong>, and for anything truly sensitive, use a
+            chat app with end-to-end encryption.
         </p>
         <p>
             It's a free service provided “as is”. We may add, change, or remove features, and we may
@@ -99,9 +101,10 @@
         <h2>6. Your content</h2>
         <p>
             You keep ownership of what you write and send. You grant us only the limited permission
-            needed to operate the Service — for example, to transmit your messages to their recipients
-            and briefly hold a message for delivery if someone is offline. Since we don't archive
-            messages, that permission is about delivering your content, not storing or using it.
+            needed to operate the Service — to transmit your messages to their recipients, store them
+            so you and your recipients get history and multi-device sync, and display them back to the
+            people they were sent to. This permission is solely to run the Service; we don't use your
+            content for anything else, and we don't sell it.
         </p>
 
         <h2>7. Encryption</h2>

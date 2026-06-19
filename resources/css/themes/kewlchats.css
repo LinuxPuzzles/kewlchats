@@ -1,0 +1,12 @@
+/*
+ * kewlchats theme bundle. Loaded by this theme's layouts via
+ * @vite('resources/css/themes/kewlchats.css'). Self-contained: Tailwind + theme
+ * tokens. Put kewlchats-specific design tokens / component styles below.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] { display: none !important; }
+
+/* --- kewlchats design tokens / custom styles go here --- */

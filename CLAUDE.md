@@ -101,15 +101,20 @@ features, so we retain almost nothing. The vibe is intentionally IRC-like — ep
   open later: closed→open is non-breaking (users *gain* reach), open→closed breaks existing
   cross-server contacts. Don't enable `s2s` until abuse/spam controls + a written retention
   policy exist.
-- **Short message archive (MAM ON, 7-day retention).** *Revised from the original "MAM off"
-  stance:* testing across real clients (Conversations/Monal/Converse) was too painful without
-  any history. We now run `mod_mam` (SQL) but **trim to 7 days** via a daily
-  `delete_old_mam_messages` timer (see `deploy/ansible/roles/ejabberd`). Spirit preserved —
-  retention is short, so "we don't have much useful data" still holds; it's no longer *zero*.
+- **Message archive (MAM ON, full retention — no trim).** *Twice revised:* original stance was
+  "MAM off / zero archive"; then "MAM on, trimmed to 7 days"; **now MAM on with no retention
+  limit** (the daily `delete_old_mam_messages` timer is removed). The reasoning behind the trim
+  was "minimize what we could be compelled to hand over." That was solving the wrong story. We
+  don't sell, use, read, or care about the data — most of it is OMEMO ciphertext we can't read
+  anyway; public-channel content is the main plaintext. The posture isn't "we keep nothing," it's
+  **"the house doesn't monitor you, but it has windows"**: we aren't watching, but the messages
+  exist and *do something stupid and there can be consequences*. So we keep the archive (better
+  UX — real scrollback, multi-device sync, client testing) and stop pretending short retention is
+  the privacy win. (Disk is a non-issue — text on a 480 GB SSD; revisit only if it ever grows large.)
 - **Smooth multi-device:** Carbons (`mod_carbons`) ON so simultaneous phone+laptop both see
   live messages; short-lived **offline spool** (`mod_offline`); MUC room history small
-  (`history_size: 20`, room `mam: true`). With the 7-day MAM a device that was *off* can now
-  sync recent scrollback (within the window).
+  (`history_size: 20`, room `mam: true`). With full MAM a device that was *off* syncs scrollback
+  with no window cap.
 - **Minimal logging / retention:** keep IP/connection-log retention minimal (metadata is what
   most requests actually want). Content, where clients use OMEMO, is ciphertext we can't read —
   but we don't *promise* E2E in the UI (we don't control the clients; it's not always on).
@@ -123,12 +128,12 @@ features, so we retain almost nothing. The vibe is intentionally IRC-like — ep
   assets (no CDN — wrong look for a no-tracking project); proxy a `/ws` WebSocket endpoint to
   ejabberd. Caveat: **OMEMO-on-web is weaker** than the native clients → web chat is the
   *convenience* path, the app is the *stronger-privacy* path; don't let the UI imply they're equal.
-- **Ephemeral-on-join is a feature, not a gap — but set the expectation.** An empty room on join
-  is the original IRC model (join and go forward), and on-brand, NOT a loss. But a newcomer who
-  didn't grow up on IRC reads "empty" as "broken." UX rule: frame it warmly and once as a **live
-  room happening now** (mental model: *walking into a party, not opening a chat log*), present-tense
-  and forward-facing (e.g. "You're in. This is a live room — you'll see everything from right now").
-  **Never** render it as an error / "No messages" / "History unavailable" state.
+- **Rooms carry history (was: "ephemeral-on-join").** *Obsolete since MAM went full-retention:* the
+  old UX rule framed empty-on-join as a feature ("walking into a party, not a chat log") because
+  there was no archive. Rooms now have scrollback (MAM + `history_size`), so **don't claim "no
+  history" anywhere in the UI** — that's now false (it was on the chat page; removed). Keep the
+  welcome warm but accurate; don't trumpet retention either (per the privacy posture, the storage is
+  disclosed in the Privacy Policy, not advertised on the chat/landing pages).
 
 > Not legal advice — jurisdiction, "communications provider" status, and lawful-intercept
 > duties need a real lawyer. The above is the technical/retention shape that keeps what we
@@ -160,8 +165,9 @@ tuning → CPU/RAM.** The hardware is *not* the limit at this scale.
 - **Don't run an open relay.** ejabberd's `mod_stun_disco` hands clients short-lived TURN
   credentials tied to their XMPP auth (XEP-0215), so it's authenticated by default — set a defined
   relay UDP port range (e.g. 49152–65535) and the server's public `turn_ipv4_address`.
-- **7-day MAM keeps load tiny.** A short, auto-trimmed archive is still almost no write load;
-  DB/disk stay small. The SSD makes MySQL latency a non-issue.
+- **MAM (full retention) is still light.** Text archive write load is tiny and the 480 GB SSD
+  makes MySQL latency a non-issue; with no trim the `mam` table grows unbounded, but text at this
+  scale won't trouble the disk for a very long time (revisit only if it ever gets large).
 - **Raise ulimits.** Default `nofile 1024` caps you at ~1k connections regardless of the
   32 GB. Raise `nofile` + Erlang max ports to 100k+. (#1 real-world gotcha.)
 - **Concurrency headroom.** ejabberd (Erlang) handles tens of thousands of concurrent
@@ -265,7 +271,7 @@ ReST API (never `ejabberdctl`).
   + MySQL + Redis. certbot+Bunny DNS-01 issues **wildcard** certs (covering `conference`/`pubsub`)
   shared by nginx and ejabberd; nginx proxies `wss://…/ws` to ejabberd's loopback HTTP listener
   (meets the secure-context requirement). The ejabberd prod config is generated from
-  `roles/ejabberd/templates/ejabberd.yml.j2` (no IPv6, loopback API, SQL backend, 7-day MAM, TURN).
+  `roles/ejabberd/templates/ejabberd.yml.j2` (no IPv6, loopback API, SQL backend, MAM full-retention, TURN).
   See `deploy/ansible/README.md`. Still TODO: actually run it against the box and finalize DNS.
 - **Multi-site (same codebase, multiple front doors).** The box hosts a `sites` list — currently
   `kewlchats.net` and `ready2.im` (the latter with `www`/`ready2im.{com,net,org}` aliases that
@@ -275,6 +281,29 @@ ReST API (never `ejabberdctl`).
   **`s2s` still off**; `s2s` is only for reaching other servers. They are deliberately not walled
   off from each other. ready2.im will eventually fork into its own codebase; until then it's the
   identical code with a different layout.
+- **Per-site theming (`SITE_THEME`).** `AppServiceProvider::boot()` prepends
+  `resources/views/themes/{SITE_THEME}` to the view finder, so any view under it overrides the
+  base (and falls back to base when absent). **Base = the default/canonical look (KewlChats);
+  `themes/` = divergent skins.** KewlChats deliberately has *no* theme files (empty
+  `themes/kewlchats/`, kept only as a hook) — it renders entirely from base, so there is nothing
+  to "move." **ready2.im** is fully themed (early-2000s IM "windows" look): landing, all six auth
+  pages, dashboard, chat, profile, legal (`<x-page>`), and admin — plus its own Tailwind bundle
+  `resources/css/themes/ready2im.css` (added to `vite.config.js`, built by `npm run build`).
+  Theme overrides must keep the functional contract: themed layouts re-`@vite` the theme CSS +
+  `app.js`, the guest layout keeps `@unbotableJs`, auth forms keep the `@unbotable*` directives,
+  and chat keeps `<x-converse-chat/>`. Form-component overrides keep the **exact same `@props`**
+  and merge retro defaults via `$attributes->merge`, so call-sites are unchanged. See
+  `resources/views/themes/README.md`.
+- **Email is themed differently — it can't ride `SITE_THEME`.** Markdown mail resolves via the
+  `mail::` namespace (hint paths), not the global view-finder prepend, so theme overrides under
+  `themes/` do **not** reach mail. Instead: the shared `vendor/mail/html/header.blade.php` +
+  `footer.blade.php` are **brand-aware** (`config('app.name')`), and the accent comes from a
+  per-site **mail CSS theme** selected by `MAIL_THEME` (`config/mail.php` →
+  `markdown.theme = env('MAIL_THEME','default')`; CSS at
+  `resources/views/vendor/mail/html/themes/<name>.css`). Wired in Ansible per site:
+  `sites[].mail_theme` (`kewlchats`→`default`, `ready2im`→`ready2im`) → `env.j2`
+  `MAIL_THEME={{ site.mail_theme | default('default') }}`. **If ready2.im forks, carry this
+  over — it won't come for free with the Blade theme.**
 - **Voice/video:** the Ansible `ejabberd.yml.j2` already includes the `ejabberd_stun` listener
   (UDP 5478) + `mod_stun_disco` with `use_turn: true`, the public `turn_ipv4_address`, and the
   relay port range (firewalled open). No coturn. Plus real MUC directory / presence polish.

@@ -4,15 +4,16 @@
 
     <div class="prose-legal">
 
-        <p class="text-sm text-slate-500">Last updated: 12 June 2026</p>
+        <p class="text-sm text-slate-500">Last updated: 18 June 2026</p>
 
         <h1 class="text-4xl font-extrabold tracking-tight text-slate-100">Privacy Policy</h1>
 
         <p>
-            The short version: <strong>we keep almost nothing about you, we don't run ads, and we
-            don't sell your data — ever.</strong> KewlChats is a free chat service, not a data
-            business. This policy explains what little we do collect, why, and what we deliberately
-            choose <em>not</em> to keep.
+            The short version: <strong>we don't run ads, we don't track you, and we don't sell your
+            data — ever.</strong> KewlChats is a free chat service, not a data business. To make chat
+            work the way you expect — history, multiple devices, public rooms — our server does store
+            your messages. But we don't read them, mine them, or monetize them. This policy explains
+            what we collect, why, and how we treat it.
         </p>
 
         <h2>Who's responsible for your data</h2>
@@ -26,9 +27,12 @@
 
         <h2>Our approach</h2>
         <p>
-            We designed KewlChats to hold as little of your information as possible. The less we keep,
-            the less there is to lose, leak, or ever be asked to hand over. That's a deliberate
-            choice, not an accident.
+            We're not in the business of watching you. We collect the personal details a chat service
+            needs and nothing extra — no ad-tech, no behavioural profiling, no selling. Your messages
+            are stored so the Service works as you'd expect (scrollback, syncing across your devices),
+            but they're yours: we don't read or use them. Put plainly — the house isn't monitoring
+            you, but it does have windows. Your messages exist on our server, so use the Service
+            accordingly.
         </p>
 
         <h2>What we collect</h2>
@@ -49,16 +53,25 @@
                 anonymous hashes that can't be traced back to you and expire on their own.</li>
         </ul>
 
-        <h2>What we deliberately do <em>not</em> keep</h2>
+        <h2>Your messages</h2>
+        <p>
+            So that chat works the way you expect — recent history, your phone and laptop staying in
+            sync, public rooms with scrollback — our server keeps an archive of messages. <strong>We
+            store them; we don't read, analyse, or sell them.</strong> Where your chat app uses
+            end-to-end encryption (such as OMEMO), the content is ciphertext we couldn't read even if
+            we wanted to. Messages you post in a <strong>public room are visible to everyone in that
+            room</strong> by their nature.
+        </p>
+
+        <h2>What we don't do</h2>
         <ul>
-            <li><strong>Your messages.</strong> We do not keep a server-side archive or history of your
-                chats. A message may be held very briefly only to deliver it if you're offline, then
-                it's gone. We can't show you old messages because we don't have them.</li>
             <li><strong>No advertising or tracking.</strong> No ad networks, no tracking pixels, no
                 third-party analytics following you around.</li>
             <li><strong>No selling or renting your data.</strong> Not to advertisers, not to data
                 brokers, not to anyone.</li>
             <li><strong>No profiles.</strong> We don't build a profile of your interests or behaviour.</li>
+            <li><strong>No snooping.</strong> Reading your conversations isn't something we do — your
+                messages are stored to run the Service, not for us to look through.</li>
         </ul>
 
         <h2>Encryption</h2>
@@ -66,8 +79,10 @@
             Many chat apps support end-to-end encryption (such as OMEMO). Where it's in use, message
             content is readable only by you and the people you're chatting with — not by us. Because
             we don't control which app you use, and encryption isn't always on (especially in public
-            rooms), we can't promise every message is encrypted. What we <em>can</em> tell you is that
-            we don't store your messages either way.
+            rooms), we can't promise every message is encrypted. Where a message <em>isn't</em>
+            end-to-end encrypted, its content is technically readable on our server — we don't read it
+            as a matter of practice, but you should treat public rooms and unencrypted chats with that
+            in mind.
         </p>
 
         <h2>Cookies</h2>
@@ -92,8 +107,10 @@
         </p>
         <p>
             <strong>Legal requests.</strong> If we're legally compelled to provide information, we can
-            only ever hand over what we actually have — which, by design, is very little. We don't
-            have your message history because we don't keep it.
+            only ever hand over what we actually have. We do keep a message archive, so where messages
+            aren't end-to-end encrypted that could include message content; where your app uses OMEMO,
+            what we hold is ciphertext we can't read. We don't volunteer your data, we resist
+            overbroad requests, and we comply only as far as the law requires.
         </p>
 
         <h2>Talking to other chat services (federation)</h2>
@@ -108,7 +125,10 @@
         <ul>
             <li><strong>Account details:</strong> kept while your account is active.</li>
             <li><strong>Technical/connection data:</strong> kept only briefly, then removed.</li>
-            <li><strong>Messages:</strong> not retained (see above).</li>
+            <li><strong>Messages:</strong> your message archive is kept while your account is active.
+                Deleting your account removes your account, chat identity, and your one-to-one and
+                private-group archive; messages you posted in public rooms may remain as part of that
+                room's history.</li>
             <li>When you delete your account, we remove your account and chat identity.</li>
         </ul>
 
@@ -151,7 +171,7 @@
         <p>
             To exercise any of these, email
             <a href="mailto:{{ 'privacy@'.config('xmpp.domain') }}">{{ 'privacy@'.config('xmpp.domain') }}</a>.
-            It's worth knowing we simply don't hold much — and we never hold your message history.
+            We'll provide a copy of the personal information we hold about you.
         </p>
 
         <h2>Your rights in California (CCPA/CPRA)</h2>
@@ -160,9 +180,10 @@
             collect, to access and delete it, to correct it, and to not be discriminated against for
             exercising these rights. In the past 12 months we have collected these categories of
             personal information: <strong>identifiers</strong> (such as name, email, username, and IP
-            address) and <strong>limited internet/network activity</strong> (basic connection data).
-            We collect it directly from you and automatically from your device, and use it for the
-            purposes described in this policy.
+            address), <strong>limited internet/network activity</strong> (basic connection data), and
+            the <strong>content of your communications</strong> (the messages we store to provide the
+            Service). We collect it directly from you and automatically from your device, and use it
+            for the purposes described in this policy — we do not sell it.
         </p>
         <p>
             <strong>We do not “sell” or “share” your personal information</strong> as those terms are
@@ -192,9 +213,9 @@
         <h2>Security</h2>
         <p>
             We protect your information with measures like password hashing, encrypted connections, and
-            — most importantly — by simply not collecting much in the first place. No service can
-            promise perfect security, but holding little data is one of the strongest protections there
-            is.
+            keeping the personal details we collect about you to a minimum. No service can promise
+            perfect security, and your strongest protection for sensitive content is an app with
+            end-to-end encryption turned on.
         </p>
 
         <h2>Changes to this policy</h2>

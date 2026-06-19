@@ -6,7 +6,7 @@
 ###     other internally (no s2s). Each vhost has its own admin + LE cert.
 ###   - NO IPv6: c2s on 0.0.0.0, HTTP API on 127.0.0.1 only, 5443 dropped
 ###   - MySQL backend (new schema), shared by all vhosts
-###   - MAM ON, {{ mam_retention_days }}-day retention (trimmed by a daily timer)
+###   - MAM ON, full retention (archive kept; no trim timer)
 ###   - Let's Encrypt certs (shared with nginx; wildcards cover conference/pubsub)
 ###   - TURN advertises the server's public IPv4
 ###
@@ -171,7 +171,7 @@ modules:
   mod_fail2ban: {}
   mod_http_api: {}
   mod_last: {}              # backs get_last -> lastActivity()
-  mod_mam:                  # MAM ON: short server-side archive (trimmed to {{ mam_retention_days }} days)
+  mod_mam:                  # MAM ON: full server-side archive (no retention trim)
     db_type: sql
     default: always
     user_mucsub_from_muc_archive: true
