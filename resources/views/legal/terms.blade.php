@@ -18,9 +18,7 @@
 
         <p>
             KewlChats is a free chat service operated by <strong>Powered By Tomorrow, LLC</strong>,
-            based in Orange County, Florida, USA (“we”, “us”). KewlChats has been around, in one form
-            or another, since 2001. It's a friendly side project, not a giant corporation — and these
-            terms reflect that.
+            based in Orange County, Florida, USA (“we”, “us”).
         </p>
 
         <h2>1. Who can use KewlChats</h2>

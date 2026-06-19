@@ -95,7 +95,7 @@
                 <span class="r2-winbtns" aria-hidden="true"><span class="r2-winbtn">_</span><span class="r2-winbtn">▢</span><span class="r2-winbtn r2-winbtn--close">✕</span></span>
             </div>
             <div class="r2-winbody p-6">
-                <p class="text-sm text-slate-600">Pick your phone, install a free app, and sign in with your address and password.</p>
+                <p class="text-sm text-slate-600">Pick your phone, install a chat app, and sign in with your address and password.</p>
 
                 <div class="mt-4 flex gap-2">
                     <button type="button" @click="tab='android'" :class="tab==='android' ? 'r2-btn--primary' : ''" class="r2-btn">Android</button>

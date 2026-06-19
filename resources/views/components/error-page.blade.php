@@ -29,9 +29,5 @@
         </div>
     </main>
 
-    <footer class="max-w-6xl w-full mx-auto px-6 py-8 text-sm text-slate-500 text-center">
-        Independent &amp; ad-free since 2001.
-    </footer>
-
 </body>
 </html>

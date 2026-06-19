@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <x-site-meta />
     <title>KewlChats — your own place to chat with friends</title>
-    <meta name="description" content="Free group chats, private messages, and calls for you and your friends. No ads, no snooping, no catch.">
+    <meta name="description" content="Group chats, DMs, and calls with the people you actually like — on your phone or in your browser.">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -42,16 +42,16 @@
                 </div>
 
                 <h1 class="text-5xl sm:text-6xl xl:text-7xl font-extrabold tracking-tight leading-[1.05]">
-                    Your friends. Your rooms.<br>
+                    Your friends.<br>
                     <span class="bg-gradient-to-r from-fuchsia-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-                        No catch.
+                        Your rooms.
                     </span>
                 </h1>
 
                 <p class="mt-6 max-w-xl mx-auto lg:mx-0 text-lg text-slate-300">
-                    Text your group, drop into a room, or hop on a call — start right in your
-                    browser, no app to install. Take it to your phone whenever you want. Free.
-                    No ads. No catch.
+                    Text your group, drop into a room, or hop on a call — with the people you
+                    actually like. Best on your phone with a chat app (Conversations or Monal),
+                    or jump in from your browser when you're at a desktop.
                 </p>
 
                 <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -114,7 +114,6 @@
 
         {{-- It's-yours reassurance strip --}}
         <p class="mt-12 max-w-2xl mx-auto text-center text-sm text-slate-400 leading-relaxed">
-            Free, and actually yours. We don't sell your info or track you.
             Public rooms are public — everything else stays between you and your friends.
         </p>
     </section>
@@ -124,7 +123,7 @@
         <div class="text-center max-w-2xl mx-auto">
             <h2 class="text-3xl sm:text-4xl font-bold">Four ways to hang out</h2>
             <p class="mt-3 text-slate-300">
-                One account does all of it — and so do both free apps we recommend.
+                One account does all of it — and so do both apps we recommend.
                 No juggling, no “which app was that on again?”
             </p>
         </div>
@@ -293,8 +292,8 @@
             @php
                 $steps = [
                     ['1', 'Pick your name', 'Sign up and choose your @ address. Verify your email — that\'s it.'],
-                    ['2', 'Start chatting', 'Right here in your browser. Nothing to install, nothing to figure out.'],
-                    ['3', 'Take it with you', 'Want it on your phone too? Add a free app whenever you like — totally optional.'],
+                    ['2', 'Get the app', 'Install a chat app — Conversations on Android, Monal on iPhone — and sign in. The best way to chat.'],
+                    ['3', 'Or just open it', 'On a desktop? Jump straight in from your browser — nothing to install.'],
                 ];
             @endphp
             @foreach ($steps as [$n, $title, $body])
@@ -337,7 +336,7 @@
     <section class="max-w-4xl mx-auto px-6 pb-28 text-center">
         <div class="rounded-3xl bg-gradient-to-br from-fuchsia-600/30 to-indigo-600/30 border border-white/10 p-12">
             <h2 class="text-3xl sm:text-4xl font-extrabold">Your @ name is waiting.</h2>
-            <p class="mt-3 text-slate-300">Independent and ad-free since 2001 — still here, still free. Takes about a minute.</p>
+            <p class="mt-3 text-slate-300">Free, and it takes about a minute.</p>
             <a href="{{ route('register') }}"
                class="mt-8 inline-block px-8 py-4 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 text-white text-lg font-semibold shadow-lg shadow-fuchsia-500/30 transition">
                 Create my account
@@ -348,7 +347,7 @@
     <footer class="border-t border-white/10">
         <div class="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
             <span>© {{ date('Y') }} KewlChats</span>
-            <span class="text-center sm:text-right">Independent &amp; ad-free since 2001. Your account works in any app you like — never locked to us.</span>
+            <span class="text-center sm:text-right">Your account works in any app you like — never locked to us.</span>
             <span class="flex gap-4">
                 <a href="{{ route('help') }}" class="hover:text-slate-200 transition">Help</a>
                 <a href="{{ route('terms') }}" class="hover:text-slate-200 transition">Terms</a>

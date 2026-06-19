@@ -97,7 +97,7 @@
             {{-- Setup guide --}}
             <div class="bg-white/5 border border-white/10 overflow-hidden shadow-sm rounded-2xl p-6" x-data="{ tab: 'android' }">
                 <h3 class="text-lg font-semibold text-slate-100">Set up your chat app</h3>
-                <p class="text-sm text-slate-400 mt-1">Pick your phone, install a free app, and sign in with your address and password.</p>
+                <p class="text-sm text-slate-400 mt-1">Pick your phone, install a chat app, and sign in with your address and password.</p>
 
                 <div class="mt-4 flex gap-2">
                     <button type="button" @click="tab='android'"

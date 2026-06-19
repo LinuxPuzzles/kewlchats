@@ -26,7 +26,7 @@
 
     <footer class="border-t border-white/10">
         <div class="{{ $max }} mx-auto px-6 py-8 text-sm text-slate-400 flex flex-col sm:flex-row gap-3 justify-between">
-            <span>© {{ date('Y') }} KewlChats — independent &amp; ad-free since 2001</span>
+            <span>© {{ date('Y') }} KewlChats</span>
             <span class="flex gap-4">
                 <a href="{{ route('help') }}" class="hover:text-slate-200 transition">Help</a>
                 <a href="{{ route('terms') }}" class="hover:text-slate-200 transition">Terms</a>

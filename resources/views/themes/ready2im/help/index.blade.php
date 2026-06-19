@@ -69,7 +69,7 @@
     </main>
 
     <footer class="max-w-5xl mx-auto px-4 py-8 border-t border-slate-500/30 text-slate-800 text-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-        <span>© {{ date('Y') }} ready2.im — independent &amp; ad-free since 2001</span>
+        <span>© {{ date('Y') }} ready2.im · instant messaging, like it used to be</span>
         <span class="flex gap-4">
             <a href="{{ route('help') }}" class="font-semibold text-blue-800 hover:text-blue-900 underline">Help</a>
             <a href="{{ route('terms') }}" class="font-semibold text-blue-800 hover:text-blue-900 underline">Terms</a>

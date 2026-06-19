@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <x-site-meta />
     <title>ready2.im — instant messaging, like it used to be</title>
-    <meta name="description" content="Free instant messaging the way it used to feel: pick a name, get a buddy list, and join rooms full of people right now. Group chats, private messages and calls in your browser — no app, no ads.">
+    <meta name="description" content="Instant messaging the way it used to feel: a name, a buddy list, and people online right now. Group chats, private messages and calls — on your phone, or in your browser.">
     @vite(['resources/css/themes/ready2im.css', 'resources/js/app.js'])
 </head>
 <body class="r2-page antialiased">
@@ -41,9 +41,9 @@
                     </h1>
                     <p class="mt-4 text-base text-slate-700 max-w-prose">
                         Pick a name, get a buddy list, and jump into rooms full of people <strong>right
-                        now</strong>. Group chats, private messages, and voice &amp; video calls —
-                        free, in your browser, with nothing to install. Take it to your phone whenever
-                        you like.
+                        now</strong>. Group chats, private messages, and voice &amp; video calls — best
+                        on your phone with a chat app (Conversations or Monal), or right from your
+                        browser when you're at a desktop.
                     </p>
                     <p class="mt-3 text-sm text-slate-500">
                         Your address looks like
@@ -57,7 +57,7 @@
                             <a href="{{ route('login') }}" class="r2-btn text-base px-6 py-2.5">Sign On</a>
                         @endauth
                     </div>
-                    <p class="mt-5 text-xs text-slate-400">Independent &amp; ad-free since 2001 · works in any chat app, never locked to us</p>
+                    <p class="mt-5 text-xs text-slate-400">Works in any chat app — never locked to us</p>
                 </div>
             </div>
 
@@ -94,7 +94,7 @@
         {{-- Features --}}
         <section class="pt-16">
             <h2 class="text-3xl font-extrabold text-white text-center drop-shadow">Everything you remember — minus the hassle</h2>
-            <p class="mt-2 text-center text-blue-50/90 max-w-2xl mx-auto">One free account does all of it, in the browser or in a chat app on your phone.</p>
+            <p class="mt-2 text-center text-blue-50/90 max-w-2xl mx-auto">One free account does all of it — on your phone, or in your browser.</p>
 
             <div class="mt-8 grid md:grid-cols-2 gap-6">
 
@@ -151,8 +151,8 @@
                         @php
                             $steps = [
                                 ['Pick your name', 'Sign up and choose your @ address, then verify your email. That’s it.'],
-                                ['Start chatting', 'Right here in your browser — nothing to install, nothing to figure out.'],
-                                ['Take it with you', 'Want it on your phone too? Add a free app (Conversations on Android, Monal on iPhone) any time — totally optional.'],
+                                ['Get the app', 'Install a chat app — Conversations on Android, Monal on iPhone — and sign in. This is the best way to chat.'],
+                                ['Or just open it', 'On a desktop? Jump straight in from your browser — nothing to install.'],
                             ];
                         @endphp
                         @foreach ($steps as $i => [$t, $b])
@@ -172,7 +172,7 @@
                 <div class="r2-titlebar justify-center"><span>✨ ready2.im</span></div>
                 <div class="r2-winbody py-10">
                     <h2 class="text-3xl font-extrabold text-slate-900">Your @ name is waiting.</h2>
-                    <p class="mt-2 text-slate-600">Independent and ad-free since 2001 — still here, still free. Takes about a minute.</p>
+                    <p class="mt-2 text-slate-600">Still here, still free — takes about a minute.</p>
                     <div class="mt-6">
                         @auth
                             <a href="{{ route('dashboard') }}" class="r2-btn r2-btn--primary text-base px-8 py-3">Open ready2.im →</a>
@@ -187,7 +187,7 @@
 
     <footer class="border-t border-slate-500/30 text-slate-800">
         <div class="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
-            <span>© {{ date('Y') }} ready2.im — independent &amp; ad-free since 2001</span>
+            <span>© {{ date('Y') }} ready2.im · instant messaging, like it used to be</span>
             <span class="flex gap-4">
                 <a href="{{ route('help') }}" class="font-semibold text-blue-800 hover:text-blue-900 underline transition">Help</a>
                 <a href="{{ route('terms') }}" class="font-semibold text-blue-800 hover:text-blue-900 underline transition">Terms</a>
