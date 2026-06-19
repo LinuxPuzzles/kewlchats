@@ -213,7 +213,8 @@ modules:
   mod_carboncopy: {}        # Carbons ON — live multi-device
   mod_client_state: {}
   mod_configure: {}
-  mod_disco: {}
+  ## mod_disco is per-vhost via append_host_config (plain on the MUC vhost, with
+  ## extra_domains on the others) — NOT global, or it duplicates with the append.
   mod_fail2ban: {}
   mod_http_api: {}
   mod_http_upload:          # XEP-0363: share images/files (Monal/Conversations/web)
@@ -302,10 +303,11 @@ append_host_config:
         default_room_options:
           mam: true                 # archive MUC messages (kept — no trim)
       mod_muc_admin: {}
+      mod_disco: {}                 # discovery; auto-lists its own conference.* natively
 {% for s in sites if s.domain != muc_vhost %}
   {{ s.domain }}:
     modules:
       mod_disco:
         extra_domains:
-          - {{ xmpp_muc_domain }}   # surface the shared MUC to this vhost's clients
+          - {{ xmpp_muc_domain }}   # no local MUC here — surface the shared one to clients
 {% endfor %}
