@@ -84,7 +84,7 @@ https://docs.ejabberd.im/developer/ejabberd-api/admin-api/
 
 ## Tests
 
-`php artisan test`. XMPP behaviour is covered against the mock in
+`php artisan test`. XMPP behavior is covered against the mock in
 `tests/Feature/XmppProvisioningTest.php` and `tests/Feature/UsernameValidationTest.php`
 (registration stashes but does not provision pre-verify; verify provisions + wipes stash;
 password change/reset sync; username rules; dashboard never leaks the password).

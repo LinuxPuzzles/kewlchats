@@ -76,7 +76,7 @@
             <li>Distribute malware, viruses, or links intended to harm or deceive.</li>
             <li>Infringe other people's intellectual property or share content you have no right to
                 share.</li>
-            <li>Impersonate other people or organisations, or misrepresent who you are.</li>
+            <li>Impersonate other people or organizations, or misrepresent who you are.</li>
             <li>Attempt to break, overload, probe, or gain unauthorised access to the Service, other
                 users, or our infrastructure — including abusing our voice/video relay servers to
                 route traffic that isn't a genuine call.</li>

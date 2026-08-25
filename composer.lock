@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dc606fe715ab92bccef1a83e3081eaff",
+    "content-hash": "8f29c24b70cc84e649b463ecd4a6221b",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -6013,19 +6013,20 @@
         },
         {
             "name": "unbotable/unbotable-laravel",
-            "version": "v0.1.0-alpha",
+            "version": "v0.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Unbotable/unbotable-laravel.git",
-                "reference": "92b5935ad5f615dbf578d5037ec3e8e24aeedb52"
+                "reference": "c4c73d9ce8ba03645e62d1d6ea1ef83069efcf97"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Unbotable/unbotable-laravel/zipball/92b5935ad5f615dbf578d5037ec3e8e24aeedb52",
-                "reference": "92b5935ad5f615dbf578d5037ec3e8e24aeedb52",
+                "url": "https://api.github.com/repos/Unbotable/unbotable-laravel/zipball/c4c73d9ce8ba03645e62d1d6ea1ef83069efcf97",
+                "reference": "c4c73d9ce8ba03645e62d1d6ea1ef83069efcf97",
                 "shasum": ""
             },
             "require": {
+                "ext-sodium": "*",
                 "illuminate/http": "^12.0|^13.0",
                 "illuminate/support": "^12.0|^13.0",
                 "php": "^8.2"
@@ -6079,7 +6080,7 @@
                 "issues": "https://github.com/unbotable/unbotable-laravel/issues",
                 "source": "https://github.com/unbotable/unbotable-laravel"
             },
-            "time": "2026-06-14T18:36:28+00:00"
+            "time": "2026-08-25T03:31:14+00:00"
         },
         {
             "name": "vlucas/phpdotenv",
@@ -8588,9 +8589,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "unbotable/unbotable-laravel": 15
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class UsernameValidationTest extends TestCase
@@ -57,6 +58,12 @@ class UsernameValidationTest extends TestCase
         // The suite runs Unbotable in observe-only mode; enforce here so the gate
         // actually blocks. A bot that trips the honeypot creates no account.
         config(['unbotable.on_block' => 'fake_success']);
+
+        // Keep the test hermetic. Outside observe-only mode the middleware may
+        // ask the service whether it is reachable, to tell "our outage" apart
+        // from "this visitor has JavaScript off". Without this fake that becomes
+        // a live outbound request from the test suite.
+        Http::fake(['*' => Http::response(['public_key' => str_repeat('0', 64)])]);
 
         $this->register(['_unbotable_hp' => 'http://spam.example']);
 

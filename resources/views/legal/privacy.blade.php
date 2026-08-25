@@ -28,7 +28,7 @@
         <h2>Our approach</h2>
         <p>
             We're not in the business of watching you. We collect the personal details a chat service
-            needs and nothing extra — no ad-tech, no behavioural profiling, no selling. Your messages
+            needs and nothing extra — no ad-tech, no behavioral profiling, no selling. Your messages
             are stored so the Service works as you'd expect (scrollback, syncing across your devices),
             but they're yours: we don't read or use them. Put plainly — the house isn't monitoring
             you, but it does have windows. Your messages exist on our server, so use the Service
@@ -47,17 +47,21 @@
                 servers may briefly process connection information such as IP addresses and basic
                 connection logs. We keep this for as short a time as practical and don't use it to
                 build a profile of you.</li>
-            <li><strong>Bot protection:</strong> our sign-up and account forms use Unbotable, a
-                self-hosted, privacy-respecting bot filter. It runs on our own infrastructure — no
-                third party, no tracking, and no CAPTCHAs to solve — and stores only one-way,
-                anonymous hashes that can't be traced back to you and expire on their own.</li>
+            <li><strong>Bot protection:</strong> our sign-up and account forms use
+                <a href="https://unbotable.com">Unbotable</a>, a privacy-respecting bot filter run by
+                us on our own servers rather than by an advertising company. When you submit one of
+                those forms it receives characteristics of your browser, which it hashes one-way
+                before storing — what it keeps is a meaningless string plus a few counters, expiring
+                on its own, and nothing in it can be traced back to you. It also briefly sees the
+                network your request came from, truncated and discarded within minutes. There are no
+                CAPTCHAs to solve, and none of it is shared with anyone or used for advertising.</li>
         </ul>
 
         <h2>Your messages</h2>
         <p>
             So that chat works the way you expect — recent history, your phone and laptop staying in
             sync, public rooms with scrollback — our server keeps an archive of messages. <strong>We
-            store them; we don't read, analyse, or sell them.</strong> Where your chat app uses
+            store them; we don't read, analyze, or sell them.</strong> Where your chat app uses
             end-to-end encryption (such as OMEMO), the content is ciphertext we couldn't read even if
             we wanted to. Messages you post in a <strong>public room are visible to everyone in that
             room</strong> by their nature.
@@ -80,7 +84,7 @@
                 third-party analytics following you around.</li>
             <li><strong>No selling or renting your data.</strong> Not to advertisers, not to data
                 brokers, not to anyone.</li>
-            <li><strong>No profiles.</strong> We don't build a profile of your interests or behaviour.</li>
+            <li><strong>No profiles.</strong> We don't build a profile of your interests or behavior.</li>
             <li><strong>No snooping.</strong> Reading your conversations isn't something we do — your
                 messages are stored to run the Service, not for us to look through.</li>
         </ul>

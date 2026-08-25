@@ -62,6 +62,7 @@ XMPP_MUC_DOMAIN=conference.kewlchats.corp
 
 # Bot protection: observe-only so tokenless test POSTs to auth routes never block.
 UNBOTABLE_URL=https://unbotable.com
+UNBOTABLE_SITE_ID=kewlchats
 UNBOTABLE_ON_BLOCK=log_only
 
 MAIL_MAILER=log
